@@ -95,9 +95,12 @@ mmd_tools_new/
 venv/
 .venv/
 # 角色模型 / 背景场景等外观资源（大体积二进制资产；磁盘保留、不入库）
-# 角色模型（VRM）是二进制大资产，不入仓；用户自备放进 models/。
+# 角色模型（VRM）是二进制大资产，默认不入仓；下面两个例外随包分发，
+# 由 deploy/release/paths.py 的 PACKED_ASSETS 点名（新机器装完即有 3D 角色）。
 # 注意用 models/* 而非 models/ —— 目录级忽略会让后续任何 ! 例外失效。
 models/*
+!models/avatar.vrm
+!models/avatar_alt.vrm
 backgrounds/
 # 烘焙动画片段与 Mixamo 原始 FBX（二进制大资产，可重建）
 # 只忽略动作片段目录，不忽略整个 web/anim/ —— animation-library.json 是手写配置，
