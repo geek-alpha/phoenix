@@ -3,7 +3,7 @@
 
 用法：
   python deploy/release/watch_release.py v1.0.6
-       [--repo wangxingfen/dabai-linux] [--root $PHOENIX_HOME]
+       [--repo geek-alpha/phoenix] [--root $PHOENIX_HOME]
        [--timeout 1800] [--interval 30]
 
 退出码：
@@ -53,7 +53,7 @@ def api_get(url: str, token: str, timeout: int = 30):
     req = urllib.request.Request(url, headers={
         "Authorization": "Bearer " + token,
         "Accept": "application/vnd.github+json",
-        "User-Agent": "dabai-watch-release",
+        "User-Agent": "phoenix-watch-release",
     })
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -118,7 +118,7 @@ def failed_steps(repo: str, run_id: int, token: str) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(description="盯发行版 workflow 直到 release 落地")
     ap.add_argument("tag", help="要盯的 tag，如 v1.0.6")
-    ap.add_argument("--repo", default="wangxingfen/dabai-linux")
+    ap.add_argument("--repo", default="geek-alpha/phoenix")
     ap.add_argument("--root", default=os.environ.get("PHOENIX_HOME") or str(Path(__file__).resolve().parents[2]))
     ap.add_argument("--timeout", type=int, default=1800, help="总超时秒数，默认 1800")
     ap.add_argument("--interval", type=int, default=30, help="轮询间隔秒数，默认 30")
@@ -158,8 +158,8 @@ def main() -> int:
                 if assets is None:
                     print(f"✘ workflow 成功但 release {args.tag} 还没建出来（可能刚完成，稍后再看）")
                     return 1
-                missing = [n for n in (f"dabai-{args.tag[1:]}.tar.gz",
-                                       f"dabai-{args.tag[1:]}.tar.gz.sha256")
+                missing = [n for n in (f"phoenix-{args.tag[1:]}.tar.gz",
+                                       f"phoenix-{args.tag[1:]}.tar.gz.sha256")
                            if n not in assets]
                 if missing:
                     print(f"✘ release 缺资产：{missing}")

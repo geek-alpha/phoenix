@@ -2,9 +2,9 @@
 """打包发行版 —— 从仓库生成一个能被三台机器自动安装的包。
 
 产物（默认落在 deploy/release/dist/）：
-    dabai-<version>.tar.gz          只含代码。经历与本机私有文件在打包阶段就被排除，
+    phoenix-<version>.tar.gz        只含代码。经历与本机私有文件在打包阶段就被排除，
                                     不是在安装阶段被跳过 —— 少一层「指望对方守规矩」。
-    dabai-<version>.tar.gz.sha256   包哈希，更新方的第一道校验
+    phoenix-<version>.tar.gz.sha256 包哈希，更新方的第一道校验
     MANIFEST.json                   包内清单的副本，不下载就能先看要写哪些文件
 
 可复现构建：文件按路径排序、mtime/uid/gid 归零、gzip mtime=0。
@@ -353,7 +353,7 @@ def build_tar(pairs: List[Tuple[str, Path]], manifest: Dict, out: Path, epoch: i
 def verify_package(tar_path: Path, manifest: Dict) -> List[str]:
     """解包回验：包内文件逐个核对 sha256，且绝不允许出现受保护路径。"""
     problems: List[str] = []
-    with tempfile.TemporaryDirectory(prefix="dabai-rel-verify-") as td:
+    with tempfile.TemporaryDirectory(prefix="phoenix-rel-verify-") as td:
         tmp = Path(td)
         with tarfile.open(tar_path, "r:gz") as tar:
             for member in tar.getmembers():
@@ -476,14 +476,14 @@ def main() -> int:
         return 1
 
     out_dir = Path(args.out) if args.out else HERE / "dist"
-    tar_path = out_dir / f"dabai-{version}.tar.gz"
+    tar_path = out_dir / f"phoenix-{version}.tar.gz"
     digest = build_tar(pairs, man, tar_path, epoch=epoch)
     # 写 .tar.gz 文件本身的哈希，不是 gzip 前的 tar 内容哈希：更新器
     # （update.py:754）下载后算的是文件哈希，写内容哈希会让每台机器都拒绝更新。
     file_sha = M.sha256_file(tar_path)
-    (out_dir / f"dabai-{version}.tar.gz.sha256").write_text(
-        f"{file_sha}  dabai-{version}.tar.gz\n", encoding="utf-8")
-    M.write_manifest(man, out_dir / f"dabai-{version}.MANIFEST.json")
+    (out_dir / f"phoenix-{version}.tar.gz.sha256").write_text(
+        f"{file_sha}  phoenix-{version}.tar.gz\n", encoding="utf-8")
+    M.write_manifest(man, out_dir / f"phoenix-{version}.MANIFEST.json")
     (out_dir / "MANIFEST.json").write_text(
         json.dumps(man, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
 

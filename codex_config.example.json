@@ -1,6 +1,6 @@
 {
   "agent": {
-    "name": "dabai-web",
+    "name": "phoenix-web",
     "work_dir": "",
     "sync_timeout_sec": 120,
     "max_reply_chars": 3800,

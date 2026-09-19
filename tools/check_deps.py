@@ -2,7 +2,7 @@
 """启动前依赖自检 —— 缺「启动必需」包就打印清单并以 1 退出。
 
 单一来源：清单与 requirements.txt 的「启动必需」段同源（uvloop/httptools 在 Windows
-上豁免，跟那份文件里的 sys_platform 标记一致）。dabai.sh / dabai.bat / selfcheck.py
+上豁免，跟那份文件里的 sys_platform 标记一致）。phoenix.sh / phoenix.bat / selfcheck.py
 都调这里，避免三处各写一份清单、各自漂。
 
 用法：
@@ -59,7 +59,7 @@ def main() -> int:
     if miss:
         print("[X] 缺少启动必需依赖：" + ", ".join(p for _, p in miss))
         print("    安装：python -m pip install -r requirements.txt")
-        print("    或一键补齐：dabai.sh --setup  /  dabai.bat --setup")
+        print("    或一键补齐：phoenix.sh --setup  /  phoenix.bat --setup")
         return 1
     checked = len([1 for _, _, e in REQUIRED if not _exempt(e)])
     print(f"[ OK ] 启动必需依赖齐全（{checked} 项，平台 {sys.platform}）")

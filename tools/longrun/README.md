@@ -6,7 +6,7 @@
 
 | 范式 | 出处 | 这里怎么用 |
 |---|---|---|
-| Ralph loop | [ghuntley.com/loop](https://ghuntley.com/loop/)、[how-to-ralph-wiggum](https://github.com/ghuntley/how-to-ralph-wiggum) | 外层 `while` 无限循环，每轮**全新上下文**（`dabai_cli.py` 独立进程），状态全落磁盘 |
+| Ralph loop | [ghuntley.com/loop](https://ghuntley.com/loop/)、[how-to-ralph-wiggum](https://github.com/ghuntley/how-to-ralph-wiggum) | 外层 `while` 无限循环，每轮**全新上下文**（`phoenix_cli.py` 独立进程），状态全落磁盘 |
 | 长跑 harness | [Anthropic: Effective harnesses for long-running agents](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents) | worker 每轮只推**一个**原子动作，收工必须留下交接物（progress + next）；上下文重置优于压缩 |
 | 长应用 harness | [Anthropic: Harness design for long-running app development](https://www.anthropic.com/engineering/harness-design-long-running-apps) | 交接物必须含状态 + 下一步；先定交付物、路径交给 agent 自己走 |
 | 持久化执行 | Temporal / Restate / DBOS 的 durable execution 范式 | 每轮幂等、checkpoint 原子落盘（tmp + fsync + `os.replace`）、崩溃后从最后一个已完成轮 resume |

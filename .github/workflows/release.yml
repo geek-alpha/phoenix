@@ -50,11 +50,11 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dabai-package
+          name: phoenix-package
           # 必须覆盖 publish 步骤后续要读的每个文件：它读的是不带版本前缀的
           # MANIFEST.json，而带通配的那个模式匹配不到这个名字（首次真实发布就挂在这里）。
           path: |
-            dist/dabai-*
+            dist/phoenix-*
             dist/MANIFEST.json
           if-no-files-found: error
           retention-days: 30
@@ -71,7 +71,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: dabai-package
+          name: phoenix-package
           path: dist
 
       - name: 读出版本号
@@ -137,13 +137,13 @@ jobs:
           TAG="${{ steps.meta.outputs.tag }}"
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "tag $TAG 已有发行版，改为上传/覆盖资产"
-            gh release upload "$TAG" dist/dabai-*.tar.gz dist/dabai-*.sha256 --clobber
+            gh release upload "$TAG" dist/phoenix-*.tar.gz dist/phoenix-*.sha256 --clobber
           else
             gh release create "$TAG" \
-              --title "大白 $TAG" \
+              --title "Phoenix $TAG" \
               --notes-file notes.md \
-              dist/dabai-*.tar.gz \
-              dist/dabai-*.sha256
+              dist/phoenix-*.tar.gz \
+              dist/phoenix-*.sha256
           fi
 
       - name: 发布后自检

@@ -54,7 +54,7 @@ MANIFEST_NAME = "MANIFEST.json"
 DEFAULTS = {
     "ROOT": os.environ.get("PHOENIX_HOME") or str(Path(__file__).resolve().parents[2]),
     "STATE": "/var/lib/dabai-update",
-    "REPO": "wangxingfen/dabai-linux",
+    "REPO": "geek-alpha/phoenix",
     "SERVICE": "myservice",
     "PORT": "8000",
     "ENTRY": "server.py",
@@ -802,7 +802,7 @@ def run(args) -> int:
         if not sha_url:
             log_line(cfg, "✘ 发行版没带 .sha256 资产 —— 无法校验，拒绝更新")
             return 1
-        tar_path = stage / f"dabai-{remote_ver}.tar.gz"
+        tar_path = stage / f"phoenix-{remote_ver}.tar.gz"
         log_line(cfg, f"下载 v{remote_ver} …")
         try:
             download(tar_url, tar_path, token, int(cfg["HTTP_TIMEOUT"]),

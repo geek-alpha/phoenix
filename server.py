@@ -35,6 +35,11 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Callable, List, Optional
 
+# 必须在任何模块级读环境变量的代码之前：把旧名 DABAI_* 同步成 PHOENIX_*（双向）
+from env_compat import promote_legacy_env
+
+promote_legacy_env()
+
 
 import edge_tts
 import uvicorn

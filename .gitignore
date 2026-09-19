@@ -94,6 +94,7 @@ mmd_tools_new/
 # Python 虚拟环境（本地环境，跨机器无意义，625M）
 venv/
 .venv/
+/venv
 # 角色模型 / 背景场景等外观资源（大体积二进制资产；磁盘保留、不入库）
 # 角色模型（VRM）是二进制大资产，默认不入仓；下面两个例外随包分发，
 # 由 deploy/release/paths.py 的 PACKED_ASSETS 点名（新机器装完即有 3D 角色）。
@@ -244,10 +245,10 @@ web/_swprobe.html
 web/icons/_preview*.png
 
 # ── 归档与构建中间产物 ────────────────────────────────────────────────
-# .archive 是「改坏了先留着」的旧版快照，godot-dabai/.project_build 是
+# .archive 是「改坏了先留着」的旧版快照，godot-phoenix/.project_build 是
 # project_build 技能的中间产物（spec.json 每次跑都重生成）。都不是运行时。
 /.archive/
-godot-dabai/.project_build/
+godot-phoenix/.project_build/
 .pytest_libs/
 # mcp fs server 的运行时 pid 文件，每次启动都会生成
 skills/mcp/run/

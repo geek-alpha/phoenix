@@ -19,7 +19,7 @@ fi
 # 孤儿清扫：runner 被强杀时 agent 子进程会被 init 收养（ppid=1）继续跑、继续烧 token。
 # 只清 ppid=1 的，绝不碰活着的 runner 正在用的子进程。
 sweep_orphans() {
-    for p in $(pgrep -f "dabai_cli.py .*longrun_" 2>/dev/null); do
+    for p in $(pgrep -f "(phoenix|dabai)_cli\.py .*longrun_" 2>/dev/null); do
         ppid=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')
         if [ "$ppid" = "1" ]; then
             echo "清理孤儿 agent 进程 $p（父进程已死）"

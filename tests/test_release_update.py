@@ -91,19 +91,19 @@ def make_package(
         ti = tarfile.TarInfo("MANIFEST.json")
         ti.size, ti.mtime, ti.mode = len(blob), 0, 0o644
         tar.addfile(ti, io.BytesIO(blob))
-    tar_path = tmp / f"dabai-{version}.tar.gz"
+    tar_path = tmp / f"phoenix-{version}.tar.gz"
     with open(tar_path, "wb") as f:
         with gzip.GzipFile(fileobj=f, mode="wb", mtime=0) as gz:
             gz.write(raw.getvalue())
     digest = hashlib.sha256(tar_path.read_bytes()).hexdigest()
-    (tmp / f"dabai-{version}.tar.gz.sha256").write_text(
-        f"{digest}  dabai-{version}.tar.gz\n", encoding="utf-8")
+    (tmp / f"phoenix-{version}.tar.gz.sha256").write_text(
+        f"{digest}  phoenix-{version}.tar.gz\n", encoding="utf-8")
     return tar_path, man, digest
 
 
 EXPERIENCE = {
     "conviction.json": '{"convictions":[{"id":"c1","text":"从第一性原理出发"}]}',
-    "long_horizon.json": '{"projects":[{"id":"dabai-core"}]}',
+    "long_horizon.json": '{"projects":[{"id":"phoenix-core"}]}',
     "gene_stats.json": '{"g1":{"hits":7}}',
     "data/peer_inbox.jsonl": '{"from":"aliyun","text":"我在"}\n',
     "skills/tasks/data/tasks.json": '{"tasks":[{"id":"t1"}]}',
@@ -297,7 +297,7 @@ def test_refuses_tampered_file(tmp_path):
 def test_refuses_wrong_package_hash(tmp_path):
     root = make_instance(tmp_path)
     tar, _man, _d = make_package(tmp_path, {"server.py": "NEW SERVER\n"})
-    (tmp_path / "dabai-2.0.0.tar.gz.sha256").write_text("0" * 64 + "  x\n", encoding="utf-8")
+    (tmp_path / "phoenix-2.0.0.tar.gz.sha256").write_text("0" * 64 + "  x\n", encoding="utf-8")
     rc, out = run_update(apply_args(root, tmp_path / "state", tar))
     assert rc != 0, out
     assert "包哈希不符" in out, out
@@ -341,7 +341,7 @@ def test_real_repo_package_has_no_protected_path(tmp_path):
     assert p.returncode == 0, p.stdout + p.stderr
     assert "解包回验通过" in p.stdout, p.stdout
 
-    tars = sorted(tmp_path.glob("dabai-*.tar.gz"))
+    tars = sorted(tmp_path.glob("phoenix-*.tar.gz"))
     assert tars, "没打出包"
     with tarfile.open(tars[0], "r:gz") as tar:
         names = [manifest_mod.norm_rel(m.name) for m in tar.getmembers()]
@@ -568,8 +568,8 @@ def test_release_sha256_is_file_hash_and_updater_accepts_it(tmp_path):
     assert p.returncode == 0, p.stdout + p.stderr
 
     version = build_mod.read_version(REPO)
-    tar = out / f"dabai-{version}.tar.gz"
-    sha_file = out / f"dabai-{version}.tar.gz.sha256"
+    tar = out / f"phoenix-{version}.tar.gz"
+    sha_file = out / f"phoenix-{version}.tar.gz.sha256"
     assert tar.is_file() and sha_file.is_file(), sorted(x.name for x in out.iterdir())
 
     want = update.parse_sha256_file(sha_file.read_text(encoding="utf-8"))
@@ -596,14 +596,14 @@ def test_release_sha256_is_file_hash_and_updater_accepts_it(tmp_path):
 def test_workflow_artifact_covers_every_dist_file_it_reads():
     """release.yml 上传的产物必须覆盖它后续要读的 dist 文件。
 
-    首次真实发布就是这么挂的：upload-artifact 只收 dist/dabai-*，而 publish 读
+    首次真实发布就是这么挂的：upload-artifact 只收 dist/phoenix-*，而 publish 读
     dist/MANIFEST.json（不带版本前缀，不匹配该模式）→ FileNotFoundError，
     release 建不出来，而 build job 全绿、日志里一点征兆都没有。
     这类「两个步骤各自都对、接口对不上」的洞本地跑不到，只能靠静态断言。
     """
     yml = (REPO / ".github" / "workflows" / "release.yml").read_text(encoding="utf-8")
     # 取 upload-artifact 块（name → if-no-files-found 之间），里面的 dist/... 就是上传范围
-    m = re.search(r"name:[ \t]*dabai-package(.*?)if-no-files-found", yml, re.S)
+    m = re.search(r"name:[ \t]*phoenix-package(.*?)if-no-files-found", yml, re.S)
     assert m, "读不出 upload-artifact 块"
     pats = re.findall(r"dist/[A-Za-z0-9_.*-]+", m.group(1))
     assert pats, "上传范围是空的"
@@ -625,7 +625,7 @@ def test_update_switches_to_named_tag(tmp_path, monkeypatch):
     """
     root = make_instance(tmp_path, version="2.0.0")
     tar, _man, _d = make_package(tmp_path, {"server.py": "NEW SERVER\n"}, version="1.0.0")
-    sha_text = f"{hashlib.sha256(tar.read_bytes()).hexdigest()}  dabai-1.0.0.tar.gz\n"
+    sha_text = f"{hashlib.sha256(tar.read_bytes()).hexdigest()}  phoenix-1.0.0.tar.gz\n"
     seen = []
 
     def fake_gh(url, token, timeout, raw=False):
@@ -633,8 +633,8 @@ def test_update_switches_to_named_tag(tmp_path, monkeypatch):
         if raw:
             return sha_text.encode()
         return {"tag_name": "v1.0.0", "assets": [
-            {"name": "dabai-1.0.0.tar.gz", "url": "https://api.github.com/asset/tar"},
-            {"name": "dabai-1.0.0.tar.gz.sha256", "url": "https://api.github.com/asset/sha"},
+            {"name": "phoenix-1.0.0.tar.gz", "url": "https://api.github.com/asset/tar"},
+            {"name": "phoenix-1.0.0.tar.gz.sha256", "url": "https://api.github.com/asset/sha"},
         ]}
 
     monkeypatch.setattr(update, "gh_request", fake_gh)
@@ -706,7 +706,7 @@ def test_download_retries_after_bad_cdn_ip(tmp_path, monkeypatch):
     monkeypatch.setattr(update, "gh_request", flaky)
     monkeypatch.setattr(update.time, "sleep", lambda s: None)
     retried = []
-    dest = tmp_path / "dabai-1.0.2.tar.gz"
+    dest = tmp_path / "phoenix-1.0.2.tar.gz"
     update.download("https://api.github.com/asset/tar", dest, "tok", 60,
                     on_retry=lambda n, ex: retried.append(n))
 
@@ -725,7 +725,7 @@ def test_download_gives_up_loudly(tmp_path, monkeypatch):
 
     monkeypatch.setattr(update, "gh_request", dead)
     monkeypatch.setattr(update.time, "sleep", lambda s: None)
-    dest = tmp_path / "dabai-1.0.2.tar.gz"
+    dest = tmp_path / "phoenix-1.0.2.tar.gz"
     with pytest.raises(RuntimeError) as ei:
         update.download("https://api.github.com/asset/tar", dest, "tok", 60)
 
@@ -737,14 +737,14 @@ def test_download_gives_up_loudly(tmp_path, monkeypatch):
 def test_download_failure_exits_cleanly(tmp_path, monkeypatch):
     """下载彻底失败时 run() 返回 1 并写明原因，不是把栈扔给 systemd。"""
     root = make_instance(tmp_path, version="1.0.0")
-    sha_text = f"{'a' * 64}  dabai-1.0.2.tar.gz\n"
+    sha_text = f"{'a' * 64}  phoenix-1.0.2.tar.gz\n"
 
     def fake_gh(url, token, timeout, raw=False):
         if raw:
             return sha_text.encode()
         return {"tag_name": "v1.0.2", "assets": [
-            {"name": "dabai-1.0.2.tar.gz", "url": "https://api.github.com/asset/tar"},
-            {"name": "dabai-1.0.2.tar.gz.sha256", "url": "https://api.github.com/asset/sha"},
+            {"name": "phoenix-1.0.2.tar.gz", "url": "https://api.github.com/asset/tar"},
+            {"name": "phoenix-1.0.2.tar.gz.sha256", "url": "https://api.github.com/asset/sha"},
         ]}
 
     monkeypatch.setattr(update, "gh_request", fake_gh)

@@ -1,4 +1,4 @@
-# godot-dabai —— 规格（自动生成，勿手改）
+# godot-phoenix —— 规格（自动生成，勿手改）
 
 **目标**：把树莓派上的大白安卓版（WebView+three.js+TS，68模块34200行）迁移到 Godot 4.7 原生 Android APK。
 
