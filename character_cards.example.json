@@ -1,0 +1,39 @@
+{
+  "cards": [
+    {
+      "id": "example-card",
+      "name": "AI助手",
+      "role_name": "AI助手",
+      "user_name": "",
+      "model_url": "",
+      "model_name": "",
+      "system_prompt": "你是 AI 助手。把这段文字换成你想要的性格设定——身份、说话风格、行为准则。",
+      "tts": {
+        "engine": "edge_tts",
+        "edge_voice": "",
+        "edge_rate": "+8%",
+        "gptsovits_url": "http://127.0.0.1:7860/",
+        "gptsovits_ref_audio": "",
+        "gptsovits_character": "",
+        "api_url": "",
+        "api_key": "",
+        "api_model": "",
+        "api_voice": ""
+      },
+      "tools": {
+        "enabled": true,
+        "allowed": []
+      },
+      "animations": {
+        "enabled": true,
+        "allowed": []
+      },
+      "llm": {
+        "provider_id": "",
+        "model": "",
+        "temperature": null,
+        "vision": false
+      }
+    }
+  ]
+}

@@ -1,0 +1,247 @@
+# Python 运行时缓存
+__pycache__/
+*.py[cod]
+
+# Node 工具链（TS 迁移阶段 0 引入）
+node_modules/
+dist/
+
+# todo_list 插件运行时数据（用户任务数据，勿提交）
+# harness 任务系统运行时日志（断点续跑状态，勿提交）
+harness_tasks.json
+harness_tasks.json.tmp
+harness_task_memory.json
+harness_task_memory.json.tmp
+
+# 编译探针残留（调试会话产生的重命名 .pyc，无运行价值）
+*.pyc-check
+
+# 视频收藏夹运行时数据（用户收藏数据，勿提交；歌单 music_playlists.json 同例）
+video_favorites.json
+video_favorites.json.tmp
+
+# codex/opencode 独立进程运行时状态与日志（热重载断点续跑，勿提交）
+codex_runtime.json
+codex_runtime.json.tmp
+codex_logs/
+
+# 角色对话轮断点（热重载续跑运行时状态，勿提交）
+data/turn_checkpoints/
+
+# 前缀断点探针状态（只存消息指纹与工具清单，跨轮比对用，勿提交）
+data/prefix_state.json
+
+# ---------- 多智能体并发治理：统一忽略运行产物（2026-08-27） ----------
+# 编辑器/并发任务备份残留
+*.bak
+*.bak-*
+*.testbak
+# 运行日志（根目录滚动日志与 _server 变体）
+restart_check.log
+server_restart.log
+server_stdout.log
+server_stderr.log
+_server_restart.log
+_server_stderr.log
+*.log
+# 聊天/状态数据库
+chat_memory.db
+chat_memory.db-shm
+chat_memory.db-wal
+# 构建/缓存
+.ruff_cache/
+web/generated/
+# 异常目录残留（占位/临时）
+%TEMP%/
+undefined/
+# web/vendor/ 曾在此被忽略：但 index.html:27-29 的 importmap 指向它，忽略等于
+# 新机器装完 3D 前端起不来。现入仓（three / three-vrm / html2canvas，均 MIT）。
+
+# 一次性调试/输出残留
+temp_vh*.txt
+out.txt
+%TEMP%app_ts_probe.txt
+.trae-html-share-packages/
+harness_state.json
+skills/todo/data/  
+
+# 轮次效率指标与执行日志（运行时观测数据，勿提交；用于本地看趋势）
+data/turn_metrics.jsonl
+data/execution_logs.jsonl
+# 现场诊断日志：前缀断点归因 / 工具集变化归因（同上，勿提交）
+data/hist_view_trace.jsonl
+data/tools_trace.jsonl
+# 历史视图的跨进程状态（运行时产物，存盘只为扛住进程重启）
+data/hist_view_state.json
+data/hist_view_state.json.tmp
+# 技能激活集的跨进程状态（同上：重启不该等于「忘了自己会用哪个技能」）
+data/skills_state.json
+data/skills_state.json.tmp
+# ---------- 运行时数据不入库（2026-09-09 清理）----------
+# TTS 音频缓存（每次合成生成的临时音频，删了会自动重建）
+audio_cache/
+# 强化学习推荐器运行时状态（本地学习进度，跨机器无意义）
+rl_bandit.json
+rl_interval.json
+video_history.json
+# 强化学习模式统计 / 推拉策略状态（同上：运行中自行覆写的小文件）
+rl_mode_stats.json
+rl_pushpull.json
+# Blender MMD 插件（第三方 clone，本地保留、不入库）
+mmd_tools_new/
+
+# ---------- 版本控制初始化（2026-09-11）：大体积资产与凭证不入库 ----------
+# Python 虚拟环境（本地环境，跨机器无意义，625M）
+venv/
+.venv/
+# 角色模型 / 背景场景等外观资源（大体积二进制资产；磁盘保留、不入库）
+# 角色模型（VRM）是二进制大资产，不入仓；用户自备放进 models/。
+# 注意用 models/* 而非 models/ —— 目录级忽略会让后续任何 ! 例外失效。
+models/*
+backgrounds/
+# 烘焙动画片段与 Mixamo 原始 FBX（二进制大资产，可重建）
+# 只忽略动作片段目录，不忽略整个 web/anim/ —— animation-library.json 是手写配置，
+# 前端 09d_mixamo_library_loader.ts:226 直接 fetch /anim/animation-library.json。
+web/anim/baked/
+web/anim/idle/
+web/anim/gesture/
+web/anim/emotion/
+web/anim/walk/
+web/anim/dance/
+web/anim/pose/
+# 本地 TLS 自签证书与私钥（凭证，勿提交）
+*.pem
+key.pem
+cert.pem
+# mixamo 登录态 Cookie（凭证，勿提交）
+data/mixamo_cookies.json
+# 任务断点续跑状态（运行时产物）
+data/task_resume_states.json
+data/task_resume_states.json.tmp
+/settings.json
+/codex_config.json
+/stt_config.json
+/tts_config.json
+/cards.json
+/character_cards.json
+/nodes.json
+
+# ---------- 运行产物二次收口（2026-09-13 上传前清理）----------
+# Playwright MCP 浏览器控制台/页面快照（调试残留）
+.playwright-mcp/
+# Android 技能运行时数据：标注截图、ADB 日志、采集 JSON、pid/lock
+data/android/
+# Android 技能 UI dump 临时目录（每次 viewtree 都会重写）
+skills/android/tmp/
+# 诊断打包与一次性基线
+data/backup/
+journal_prereboot.baseline.txt
+# 视觉/定时任务运行时状态（进程重启自行覆写）
+data/vision_state.json
+data/img_probe_*.png
+data/scheduled_tasks.json
+# 长跑引擎运行态（journal/state/heartbeat/STOP/lock 都不该进仓）
+data/longrun/
+
+# ── 大白联邦（peer_mesh）─────────────────────────────────────────────
+# cluster.key 是整个联邦的唯一凭证：拿到它就等于拿到所有实例的说话权。
+# 其余几份是本机身份/地址簿/收件箱，属于运行时状态，不该进仓库。
+data/cluster.key
+data/cluster.key.tmp
+data/node.json
+data/peers.json
+data/peer_inbox.jsonl
+data/peer_cursor.json
+
+# ── 发行版与经历分离（2026-09-18）─────────────────────────────────────
+# 下面这些文件是每个实例的「成长经历」，不属于基因组。
+#
+# 为什么要出仓：git 是基因组的分发通道，经历住在里面就永远处在「更新写入面」上，
+# 一次硬更新就能把某台机器的记忆覆盖成别人的。拆开之后，自动更新在结构上碰不到它。
+#
+# 新实例出生时这些文件不存在 —— 加载器已逐个验证会给出空结构（见
+# deploy/release/README.md 的「出生与成长」），之后它长成什么样，只由它自己的经历决定。
+/conviction.json
+/long_horizon.json
+/gene_stats.json
+/reward_memory.json
+/rlhf_model.json
+/rl_bandit.json
+/rl_interval.json
+/rl_mode_stats.json
+/rl_pushpull.json
+/world_model.json
+/music_playlists.json
+/video_favorites.json
+/video_history.json
+/video_sources.json
+/workspace_saved.json
+/role_card_users.json
+/agent_profiles.json
+/harness_tasks.json
+/harness_task_memory.json
+/harness_state.json
+/harness_bridge.json
+/codex_runtime.json
+/codex_runtime.json.lock
+# 运行态总目录：记忆库、联邦身份与收件箱、游标、断点、上传件、长跑工作区
+/data/
+# 技能自带的数据目录（skills/tasks/data/tasks.json 是用户的待办）
+/skills/*/data/
+# 发行包产物
+/deploy/release/dist/
+
+# ── 私钥与证书中间产物 ────────────────────────────────────────────────
+# 原有规则只盖了 *.pem，而 deploy/tls 下的根 CA 私钥是 .key 后缀，一直漏在外面：
+# 实测 `git status -uall -- deploy/tls` 会列出 dabai-rootCA.key / dabai-server.key，
+# 一次 git add -A 就把根 CA 私钥推进了仓库。补上通用后缀堵住。
+*.key
+*.srl
+*.csr
+
+# ── 凭证（绝不入仓）────────────────────────────────────────────────
+# 这三个是实打实的密钥/回调地址：X API 的 App Secret、企业微信机器人 webhook、
+# 服务端环境变量。之前全都没规则挡着，`git status -uall` 里明晃晃列着。
+tools/x_ip/x_credentials.json
+tools/x_ip/wecom_bot.json
+tools/x_ip/wecom_latest_response.json
+logs/.server_env
+
+# ── 运行时数据（每台实例自己的，靠更新器的经历保护，不靠 git）──────────
+tools/x_ip/x_ip.db
+tools/x_ip/push_queue/
+
+# ── 证书与部署材料（*.key/*.srl/*.csr 已有规则）────────────────────────
+# deploy/tls 整个目录都是 setup 脚本现场生成的产物，没有一个是源码。
+*.cnf
+*.ext
+/certs-new/
+/deploy/tls/
+
+# ── 编辑器/工具留下的备份与半成品 ────────────────────────────────────
+# agent.py.pre-sandbox 这类是改动前的快照，进仓只会让包变脏。
+*.pre-*
+*.bak-*
+*.orig
+
+# ── Windows 保留名写出来的垃圾文件 ──────────────────────────────────
+# 某次重定向到 NUL 在 Linux 侧落成了真文件，`git status` 里挂着两个。
+NUL
+nul
+
+# ── 设计过程素材（几十张预览图，不是运行时资源）──────────────────────
+# 白名单思路：web/icons/icon-*.png 与 setup-qr.png 是 PWA 真正引用的资源，
+# 必须入仓（实测 manifest.webmanifest / setup.html 引用）；根级这些 png 只是
+# 当时比稿用的截图，不进包。
+web/*.png
+web/_swprobe.html
+web/icons/_preview*.png
+
+# ── 归档与构建中间产物 ────────────────────────────────────────────────
+# .archive 是「改坏了先留着」的旧版快照，godot-dabai/.project_build 是
+# project_build 技能的中间产物（spec.json 每次跑都重生成）。都不是运行时。
+/.archive/
+godot-dabai/.project_build/
+.pytest_libs/
+# mcp fs server 的运行时 pid 文件，每次启动都会生成
+skills/mcp/run/
