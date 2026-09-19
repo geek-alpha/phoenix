@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""白头凤科技官网 v2 生成器。
+"""Phoenix科技官网 v2 生成器。
 
 数据源：/home/wxf/dabai/skills/*/skill.json（真实 OpenAI function-calling schema）
 产出：
@@ -214,7 +214,7 @@ def page(title, desc, active, body, rel="", soft=False):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>%s · 白头凤科技</title>
+<title>%s · Phoenix科技</title>
 <meta name="description" content="%s">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128293;</text></svg>">
 <link rel="stylesheet" href="%sassets/site.css">
@@ -224,12 +224,12 @@ def page(title, desc, active, body, rel="", soft=False):
 <div class="bg"></div><div class="nebula"></div><div class="milky"></div><canvas id="stars"></canvas><div class="horizon"></div><div class="scan"></div>
 <header><div class="wrap nav">
   <a class="brand" href="%sindex.html"><span class="mark">&#128293;</span>
-    <span>白头凤科技<small>BATTLE PHOENIX TECH</small></span></a>
+    <span>Phoenix科技<small>PHOENIX TECH</small></span></a>
   <ul>%s</ul>
 </div></header>
 %s
 <footer><div class="wrap fwrap">
-  <span>&copy; %s 白头凤科技 · Battle Phoenix Tech</span>
+  <span>&copy; %s Phoenix科技 · Phoenix Tech</span>
   <span class="lnk">
     <a href="%sdocs.html">技术文档</a>
     <a href="%sdemo.html">在线 Demo</a>
@@ -381,7 +381,7 @@ bind(document.getElementById('q'),'packs','个技能包');
 bind(document.getElementById('q2'),'tools','个函数');
 </script>""" % (len(skills), total_tools, len(skills), total_tools, cards,
                 total_tools, rows)
-    return page("技术文档", "白头凤科技技能包完整接口文档：参数、类型、必填与接入形态。",
+    return page("技术文档", "Phoenix科技技能包完整接口文档：参数、类型、必填与接入形态。",
                 "docs.html", body, soft=True)
 
 
@@ -436,7 +436,7 @@ def skill_readme(skill, total_tools):
         "# 3) 载入本地 harness",
         "load_skill('%s')" % skill["name"],
         "```", "",
-        "本包属于 `%s` 技能库（共 %d 个包）。" % ("Battle Phoenix", total_tools),
+        "本包属于 `%s` 技能库（共 %d 个包）。" % ("Phoenix", total_tools),
     ]
     return "\n".join(lines) + "\n"
 
@@ -499,7 +499,7 @@ def make_zips(skills, total_tools):
 
 
 def full_spec(skills, total_tools):
-    out = ["# 白头凤科技 · 技能库交付说明", "",
+    out = ["# Phoenix科技 · 技能库交付说明", "",
            "生成日期：%s" % date.today().isoformat(), "",
            "## 本包内容", "",
            "- `skills/<name>/skill.json` — 每个技能包的原始契约（%d 个包）" % len(skills),
@@ -590,7 +590,7 @@ print(ex["code_search"])</code></pre>
 </div></section>""" % (len(skills), total_tools, len(manifest), rows,
                        esc(VERSION), esc(VERSION), date.today().isoformat(),
                        len(manifest))
-    return page("交付与下载", "白头凤科技技能包交付物：契约、参数文档、调用骨架与集成说明。",
+    return page("交付与下载", "Phoenix科技技能包交付物：契约、参数文档、调用骨架与集成说明。",
                 "deliverables.html", body)
 
 

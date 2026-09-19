@@ -112,7 +112,7 @@ def main():
         # 只看 SW 是否 active 会漏掉这个——SW 活着但模型进不去，照样每次重下 24MB。
         if args.fetch_model:
             out["model"] = page.evaluate("""async () => {
-                const url = '/models/' + encodeURIComponent('白头凤.vrm');
+                const url = '/models/' + encodeURIComponent('avatar.vrm');
                 const t0 = performance.now();
                 await (await fetch(url)).arrayBuffer();
                 const t1 = performance.now();

@@ -89,7 +89,7 @@ def smtp_cfg() -> Optional[dict]:
         "user": user,
         "pass": pw,
         "from": str(d.get("from") or user).strip(),
-        "name": str(d.get("name") or "白头凤科技").strip(),
+        "name": str(d.get("name") or "Phoenix科技").strip(),
         "ssl": bool(d.get("ssl", True)),
     }
 
@@ -139,9 +139,9 @@ def _send_mail(to: str, code: str) -> None:
     body = (f"你的注册验证码是：{code}\n\n"
             f"{CODE_TTL // 60} 分钟内有效。密码设置完成后即可用邮箱登录。\n"
             f"不是本人操作请直接忽略这封邮件。\n\n"
-            f"—— 白头凤科技 BATTLE PHOENIX")
+            f"—— Phoenix科技 PHOENIX")
     msg = MIMEText(body, "plain", "utf-8")
-    msg["Subject"] = Header(f"白头凤科技 · 注册验证码 {code}", "utf-8")
+    msg["Subject"] = Header(f"Phoenix科技 · 注册验证码 {code}", "utf-8")
     msg["From"] = formataddr((str(Header(c["name"], "utf-8")), c["from"]))
     msg["To"] = to
     msg["Date"] = formatdate(localtime=True)

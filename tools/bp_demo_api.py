@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Battle Phoenix Tech — public read-only demo API.
+"""Phoenix Tech — public read-only demo API.
 
 暴露的能力全部「不碰文件系统、不执行外部命令」：
   GET  /api/health        服务状态

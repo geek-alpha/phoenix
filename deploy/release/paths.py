@@ -132,8 +132,8 @@ LOCAL_GLOBS: tuple[str, ...] = (
 # 缺了 3D 角色就是空的。所以逐个点名放行 —— 与 LOCAL 的「默认拒绝」相反，
 # 以后往 models/ 里丢新文件仍然默认受保护。
 PACKED_ASSETS: tuple[str, ...] = (
-    "models/白头凤.vrm",
-    "models/渡鸦将军.vrm",
+    "models/avatar.vrm",
+    "models/avatar_alt.vrm",
 )
 
 # ── 保护地板：update.py 内嵌一份同样的最小集，与清单取并集 ──────────────────
@@ -329,9 +329,9 @@ def _selftest() -> int:
         # 本机私有
         ("venv/bin/python", LOCAL),
         ("models/x.vrm", LOCAL),
-        ("models/白头凤.vrm", CODE),           # 受管资产：点名放行
-        ("models/渡鸦将军.vrm", CODE),
-        ("models/白头凤_draco3.vrm", LOCAL),   # 未点名 → 默认受保护
+        ("models/avatar.vrm", CODE),           # 受管资产：点名放行
+        ("models/avatar_alt.vrm", CODE),
+        ("models/avatar_draco3.vrm", LOCAL),   # 未点名 → 默认受保护
         ("backgrounds/太空飞船走廊.glb", LOCAL),
         ("key.pem", LOCAL),
         ("deploy/tls/dabai-server.key", LOCAL),

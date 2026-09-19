@@ -87,8 +87,8 @@ FLOOR_GLOBS: Tuple[str, ...] = (
 # 受管资产白名单：住在大资产目录里、但属于发布方受管、随包分发、可被更新覆盖。
 # 与 paths.py 的 PACKED_ASSETS 同源，测试断言两者一致。
 PACKED_ASSETS: Tuple[str, ...] = (
-    "models/白头凤.vrm",
-    "models/渡鸦将军.vrm",
+    "models/avatar.vrm",
+    "models/avatar_alt.vrm",
 )
 
 # 经历见证集：更新前后比对这些文件的哈希，用来证明「经历没被动过」。

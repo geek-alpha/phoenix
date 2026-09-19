@@ -1,4 +1,4 @@
-/* 白头凤 PWA Service Worker —— 资源本地化层
+/* Phoenix PWA Service Worker —— 资源本地化层
  *
  * 目标：手机端第二次打开不再走网络瀑布（69 个 .ts 模块 + vendor 库）。
  *
@@ -202,7 +202,7 @@ async function networkFirst(req) {
       const shell = await cache.match('/');
       if (shell) return shell;
     }
-    return new Response('离线：白头凤未启动或不在同一网络', {
+    return new Response('离线：Phoenix未启动或不在同一网络', {
       status: 503,
       headers: { 'Content-Type': 'text/plain; charset=utf-8' },
     });

@@ -1,7 +1,7 @@
 {
-  "name": "BattlePhoenix - 破茧成蝶",
+  "name": "Phoenix - 破茧成蝶",
   "short_name": "破茧成蝶",
-  "description": "BattlePhoenix - 破茧成蝶：3D 数字女友与任务中心",
+  "description": "Phoenix - 破茧成蝶：3D 数字角色与任务中心",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

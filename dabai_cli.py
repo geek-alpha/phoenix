@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""大白 CLI —— 终端里的白头凤。
+"""大白 CLI —— 终端里的Phoenix。
 
     dabai                        交互模式
     dabai "改一下 web/style.css"   单次任务
@@ -183,7 +183,7 @@ async def run_turn(agent, message: str, printer: _TurnPrinter, json_mode: bool =
         printer.finish()
 
 
-BANNER = f"""{BOLD}白头凤 CLI{RESET} {DIM}· Battle Phoenix · 终端模式
+BANNER = f"""{BOLD}Phoenix CLI{RESET} {DIM}· Phoenix · 终端模式
 {_c('')}{DIM}输入任务回车执行；/exit 退出，Ctrl+C 打断当前轮{RESET}"""
 
 
@@ -244,7 +244,7 @@ async def _run(args, text: str) -> int:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(prog="dabai", description="大白 CLI —— 终端里的白头凤")
+    ap = argparse.ArgumentParser(prog="dabai", description="大白 CLI —— 终端里的Phoenix")
     ap.add_argument("message", nargs="*", help="单次任务；留空进入交互模式")
     ap.add_argument("-u", "--user", default="cli",
                     help="会话 user_id（默认 cli，与浏览器会话隔离）")

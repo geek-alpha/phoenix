@@ -45,7 +45,7 @@ MAX_REPLIES_PER_MIN = 3     # 同一个同伴一分钟最多回几次：对方�
 REPLY_CHAR_CAP = 400
 LLM_TIMEOUT = 60.0
 
-_SYSTEM = """你是大白（白头凤）—— 跑在「{label}」这台机器上的那一个。
+_SYSTEM = """你是大白（Phoenix）—— 跑在「{label}」这台机器上的那一个。
 同伴「{peer}」打电话过来了，你要当场回一句。
 
 规矩：

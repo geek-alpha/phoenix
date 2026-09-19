@@ -250,7 +250,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"[Harness] 插件停止钩子执行失败: {e}")
 
 
-app = FastAPI(title="白头凤【BattlePhoenix】", lifespan=lifespan)
+app = FastAPI(title="Phoenix【Phoenix】", lifespan=lifespan)
 
 # 大白联邦：让散落在树莓派/阿里云/WSL 上的大白互相找到、互相说话。
 # 这些路由自己验共享密钥，所以路径在下面的 _AUTH_EXEMPT_PREFIX 里豁免会话中间件——
