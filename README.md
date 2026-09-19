@@ -49,7 +49,9 @@ Python 环境（Linux / macOS）：
 
 默认直接跑 HTTPS（自签证书，首次启动生成）。如果你在前面挂了 nginx 做 TLS 终结，把 `settings.json` 的 `harness.http_only` 改成 `true`，服务就只监听 8001 回源端口。
 
-Windows：`dabai.bat`，Python 依赖见 `requirements.txt`（含 `bpy`/`mathutils` 等 Blender 内嵌模块，需先装系统 Blender）。
+Windows：`dabai.bat --setup`（与 `dabai.sh --setup` 等价：建 venv → 装依赖 → 自检 → 启动），`dabai.bat --check` 只自检不启动。
+
+依赖清单两边共用一份 `requirements.txt`，平台差异用 PEP 508 环境标记表达：`uvloop`/`httptools` 标了 `sys_platform != "win32"`，在 Windows 上自动跳过——它们没有 Windows wheel，装了也 import 不了；服务启动时逐个探测，缺了自动退回 asyncio + h11。`bpy`/`bmesh`/`mathutils` 这类 Blender 内嵌模块不在 pip 面内，要用模型转换技能时装系统 Blender 并设 `DABAI_BLENDER` 指向它。
 
 ### 运行
 

@@ -72,14 +72,16 @@ if [ "$DO_VENV" = "1" ]; then
   VP="$ROOT/venv/bin/python"
   echo "升级 pip…"
   "$VP" -m pip install --upgrade pip -q
-  echo "安装 requirements-linux.txt（失败的包会被跳过并汇总）…"
+  echo "安装 requirements.txt（失败的包会被跳过并汇总）…"
   failed=()
   while IFS= read -r line; do
     pkg="${line%%#*}"
-    pkg="$(echo "$pkg" | xargs)"
+    # 不能用 xargs 去空白——它会吃掉 PEP 508 环境标记里的引号：
+    # `uvloop; sys_platform != "win32"` 会变成 `... != win32`，pip 直接报 InvalidRequirement。
+    pkg="$(printf '%s' "$pkg" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
     [ -z "$pkg" ] && continue
     "$VP" -m pip install -q "$pkg" || failed+=("$pkg")
-  done < requirements-linux.txt
+  done < requirements.txt
   if [ ${#failed[@]} -gt 0 ]; then
     echo "以下包安装失败（多为需要编译或平台不支持，通常不影响核心）："
     printf '  - %s\n' "${failed[@]}"
@@ -91,4 +93,4 @@ echo
 echo "== 自检 =="
 VP="$ROOT/venv/bin/python"
 [ -x "$VP" ] || VP="$PY"
-exec "$VP" "$ROOT/tools/linux_selfcheck.py"
+exec "$VP" "$ROOT/tools/selfcheck.py"

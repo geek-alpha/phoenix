@@ -30,12 +30,9 @@ if [ ${#PASS_ARGS[@]} -gt 0 ]; then set -- "${PASS_ARGS[@]}"; else set --; fi
 # 只看 venv/bin/python 存在与否是不够的：上次装到一半（磁盘满 / 网络断）会留下一个
 # 半成品 venv，再跑 --setup 会直接跳过，问题拖到启动时才炸。
 if [ "$SETUP" = "1" ]; then
-  if [ ! -x "$ROOT/venv/bin/python" ] || ! "$ROOT/venv/bin/python" -c '
-import importlib.util as u, sys
-need = ["fastapi", "uvicorn", "uvloop", "httptools", "multipart", "websockets",
-        "aiohttp", "requests", "starlette", "numpy", "edge_tts", "openai"]
-sys.exit(0 if all(u.find_spec(m) for m in need) else 1)
-' 2>/dev/null; then
+  # 依赖清单只有 tools/check_deps.py 一处（与 requirements.txt 同源），这里不内联抄。
+  if [ ! -x "$ROOT/venv/bin/python" ] || \
+     ! "$ROOT/venv/bin/python" "$ROOT/tools/check_deps.py" >/dev/null 2>&1; then
     echo "== 环境缺失或依赖不全：创建虚拟环境并安装依赖 =="
     "$ROOT/tools/linux_setup.sh" --venv || {
       echo "✗ 环境创建失败。若缺系统包，先跑：$ROOT/tools/linux_setup.sh --install-system" >&2
@@ -61,22 +58,14 @@ fi
 
 # ---- 依赖自检（缺关键包时给出可执行命令，而不是让 server 崩在 import）----
 if [ "${1:-}" = "--check" ]; then
-  exec "$PY" "$ROOT/tools/linux_selfcheck.py"
+  exec "$PY" "$ROOT/tools/selfcheck.py"
 fi
 
-# 必需清单与 requirements-linux.txt 的「启动必需」段一致。只查 5 个包会漏掉
-# uvloop / httptools / python-multipart 这类「一 import 就崩」的，问题留到启动才暴露。
-MISSING="$("$PY" - <<'EOF' 2>/dev/null || true
-import importlib.util as u
-need = ["fastapi", "uvicorn", "uvloop", "httptools", "multipart", "websockets",
-        "aiohttp", "requests", "starlette", "numpy", "edge_tts", "openai"]
-print(" ".join(m for m in need if u.find_spec(m) is None))
-EOF
-)"
-if [ -n "$MISSING" ]; then
-  echo "✗ 缺少依赖：$MISSING"
-  echo "  安装：$PY -m pip install -r requirements-linux.txt"
-  echo "  或一键补齐：$ROOT/dabai.sh --setup"
+# 依赖清单只在 tools/check_deps.py 里一份（与 requirements.txt 同源，Windows 上自动
+# 豁免 uvloop/httptools）。以前这里内联抄了一遍，于是 uvloop/httptools/python-multipart
+# 三个「一 import 就崩」的包全在盲区，问题留到启动才暴露。
+if ! "$PY" "$ROOT/tools/check_deps.py"; then
+  echo "  或一键补齐：$ROOT/dabai.sh --setup" >&2
   exit 1
 fi
 

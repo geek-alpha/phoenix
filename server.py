@@ -7966,12 +7966,25 @@ if __name__ == "__main__":
 
     start_hot_reload(on_ext_reload=_hot_reload_ext_callback)
 
+    # uvloop / httptools 是 Linux/macOS 的性能加速项。Windows 上 uvloop 官方不支持
+    # （PyPI 没有 win wheel），硬编码 loop="uvloop" 会直接崩在启动——所以装了才用，
+    # 缺了或装不上就退回 uvicorn 默认的 asyncio + h11。
+    _fast: dict = {}
+    try:
+        import uvloop  # noqa: F401
+        _fast["loop"] = "uvloop"
+    except Exception:
+        pass
+    try:
+        import httptools  # noqa: F401
+        _fast["http"] = "httptools"
+    except Exception:
+        pass
+
     if use_https:
-        uvicorn.run(app, host=host, port=SERVER_PORT, log_level="warning",
-                    loop="uvloop", http="httptools",
+        uvicorn.run(app, host=host, port=SERVER_PORT, log_level="warning", **_fast,
                     ssl_certfile=str(cert_file), ssl_keyfile=str(key_file))
     else:
         # nginx 前置 TLS 终结模式：回源端口 8001，对外仍由 nginx 提供 8000 HTTPS
         _serve_port = 8001 if _http_only else SERVER_PORT
-        uvicorn.run(app, host=host, port=_serve_port, log_level="warning",
-                    loop="uvloop", http="httptools")
+        uvicorn.run(app, host=host, port=_serve_port, log_level="warning", **_fast)
