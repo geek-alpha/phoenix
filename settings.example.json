@@ -3,7 +3,7 @@
   "harness": {
     "hot_reload": true,
     "core_autorestart": false,
-    "http_only": true,
+    "http_only": false,
     "task_spec_required": false,
     "progressive_disclosure": true
   },

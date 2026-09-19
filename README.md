@@ -30,9 +30,26 @@ mkdir skills/my_skill
 
 ### 安装
 
+前端资源：
+
 ```bash
 npm install
 ```
+
+Python 环境（Linux / macOS）：
+
+```bash
+./dabai.sh --setup     # 一键：建 venv + 装依赖 + 自检 + 启动
+./dabai.sh --check     # 只自检，不启动
+```
+
+首次启动会自动从 `settings.example.json` 生成 `settings.json`（该文件不入仓，因为要存你的 API Key）和一张本机自签 TLS 证书。**密钥要自己填**：启动后进设置页填 API Key，或直接改 `settings.json` 的 `api_key`。
+
+⚠️ **venv 不要建在 tmpfs 上**：不少系统 `/tmp` 是内存盘（`df -h /tmp` 看容量），依赖装到一半会 `No space left on device`，留下一个「能 import 一部分」的半成品环境——这种环境最坑，`--setup` 现在会检测并补齐，但不如一开始就别踩。
+
+默认直接跑 HTTPS（自签证书，首次启动生成）。如果你在前面挂了 nginx 做 TLS 终结，把 `settings.json` 的 `harness.http_only` 改成 `true`，服务就只监听 8001 回源端口。
+
+Windows：`dabai.bat`，Python 依赖见 `requirements.txt`（含 `bpy`/`mathutils` 等 Blender 内嵌模块，需先装系统 Blender）。
 
 ### 运行
 

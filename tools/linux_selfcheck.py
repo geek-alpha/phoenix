@@ -54,19 +54,37 @@ def main() -> int:
         check("platform_compat 兼容层", FAIL, f"导入失败：{e.__class__.__name__}: {e}")
 
     # 3) 关键文件
-    for rel in ("server.py", "codex_runner.py", "settings.json"):
+    for rel in ("server.py", "codex_runner.py"):
         p = ROOT / rel
         check(f"文件 {rel}", OK if p.is_file() else FAIL, "" if p.is_file() else "缺失")
+    # settings.json 不入仓（含 api_key，在 .gitignore 里），全新 clone 只有 example。
+    # server.py 首次启动会自动生成一份；这里也顺手补，别报一个必然会消失的阻塞项。
+    settings = ROOT / "settings.json"
+    if settings.is_file():
+        check("文件 settings.json", OK, "")
+    else:
+        example = ROOT / "settings.example.json"
+        if example.is_file():
+            settings.write_text(example.read_text(encoding="utf-8"), encoding="utf-8")
+            check("文件 settings.json", OK, "已从 settings.example.json 生成（首次，去设置页填 API Key）")
+        else:
+            check("文件 settings.json", FAIL, "缺失，且找不到 settings.example.json")
     web_index = ROOT / "web" / "index.html"
     check("前端 web/index.html", OK if web_index.is_file() else WARN,
           "" if web_index.is_file() else "缺失（网页界面不可用）")
 
     # 4) 关键依赖
-    core = ["fastapi", "uvicorn", "aiohttp", "requests", "starlette", "numpy"]
+    # 与 requirements-linux.txt 的「启动必需」段一致：这些缺一个 server.py 就起不来。
+    # 原来只查 6 个，漏掉 uvloop/httptools/python-multipart —— 实测全新 venv 装上
+    # 那 19 个包后启动，依次报的正是这三个。
+    core = ["fastapi", "uvicorn", "uvloop", "httptools", "multipart", "websockets",
+            "aiohttp", "requests", "starlette", "numpy", "edge_tts", "openai"]
     missing = [m for m in core if not _has(m)]
     check("核心依赖", FAIL if missing else OK, "缺少：" + ", ".join(missing) if missing else "")
 
-    optional = ["PIL", "mss", "edge_tts", "playwright", "yt_dlp", "netifaces"]
+    # 缺了只降级不阻塞：PDF 附件 / 手机配对码 / 证书生成后端
+    optional = ["PIL", "mss", "playwright", "yt_dlp", "netifaces",
+                "cryptography", "pypdf", "qrcode"]
     missing_opt = [m for m in optional if not _has(m)]
     check("可选依赖", WARN if missing_opt else OK,
           "未安装（对应能力降级）：" + ", ".join(missing_opt) if missing_opt else "")

@@ -26,13 +26,22 @@ for a in "$@"; do
 done
 if [ ${#PASS_ARGS[@]} -gt 0 ]; then set -- "${PASS_ARGS[@]}"; else set --; fi
 
-# ---- 一键引导：venv 不在就先建环境（幂等，已存在则跳过）----
-if [ "$SETUP" = "1" ] && [ ! -x "$ROOT/venv/bin/python" ]; then
-  echo "== 首次运行：创建虚拟环境并安装依赖 =="
-  "$ROOT/tools/linux_setup.sh" --venv || {
-    echo "✗ 环境创建失败。若缺系统包，先跑：$ROOT/tools/linux_setup.sh --install-system" >&2
-    exit 1
-  }
+# ---- 一键引导：venv 不在、或启动必需依赖不全，都补装（幂等）----
+# 只看 venv/bin/python 存在与否是不够的：上次装到一半（磁盘满 / 网络断）会留下一个
+# 半成品 venv，再跑 --setup 会直接跳过，问题拖到启动时才炸。
+if [ "$SETUP" = "1" ]; then
+  if [ ! -x "$ROOT/venv/bin/python" ] || ! "$ROOT/venv/bin/python" -c '
+import importlib.util as u, sys
+need = ["fastapi", "uvicorn", "uvloop", "httptools", "multipart", "websockets",
+        "aiohttp", "requests", "starlette", "numpy", "edge_tts", "openai"]
+sys.exit(0 if all(u.find_spec(m) for m in need) else 1)
+' 2>/dev/null; then
+    echo "== 环境缺失或依赖不全：创建虚拟环境并安装依赖 =="
+    "$ROOT/tools/linux_setup.sh" --venv || {
+      echo "✗ 环境创建失败。若缺系统包，先跑：$ROOT/tools/linux_setup.sh --install-system" >&2
+      exit 1
+    }
+  fi
 fi
 
 # ---- 选解释器：优先项目内 venv，其次 PATH ----
@@ -55,16 +64,19 @@ if [ "${1:-}" = "--check" ]; then
   exec "$PY" "$ROOT/tools/linux_selfcheck.py"
 fi
 
+# 必需清单与 requirements-linux.txt 的「启动必需」段一致。只查 5 个包会漏掉
+# uvloop / httptools / python-multipart 这类「一 import 就崩」的，问题留到启动才暴露。
 MISSING="$("$PY" - <<'EOF' 2>/dev/null || true
 import importlib.util as u
-need = ["fastapi", "uvicorn", "aiohttp", "requests", "starlette"]
+need = ["fastapi", "uvicorn", "uvloop", "httptools", "multipart", "websockets",
+        "aiohttp", "requests", "starlette", "numpy", "edge_tts", "openai"]
 print(" ".join(m for m in need if u.find_spec(m) is None))
 EOF
 )"
 if [ -n "$MISSING" ]; then
   echo "✗ 缺少依赖：$MISSING"
   echo "  安装：$PY -m pip install -r requirements-linux.txt"
-  echo "  或先自检：$ROOT/dabai.sh --check"
+  echo "  或一键补齐：$ROOT/dabai.sh --setup"
   exit 1
 fi
 

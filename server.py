@@ -136,6 +136,25 @@ BACKGROUNDS_DIR.mkdir(exist_ok=True)
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# settings.json 在 .gitignore 里（含用户 api_key），仓库只带 settings.example.json。
+# load_config()/_load_settings() 是裸 open，缺文件时第一个配置类请求就 500 —— 全新
+# clone 必须先有一份，首次启动从示例生成。
+def ensure_settings_file() -> bool:
+    """settings.json 不存在时从 settings.example.json 生成。返回是否新建。"""
+    dst = BASE_DIR / "settings.json"
+    if dst.exists():
+        return False
+    src = BASE_DIR / "settings.example.json"
+    if not src.exists():
+        return False
+    dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    return True
+
+
+if ensure_settings_file():
+    logger.info("[Config] 首次启动：已从 settings.example.json 生成 settings.json（去设置页填 API Key）")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # ---- startup ----
