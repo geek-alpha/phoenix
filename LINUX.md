@@ -29,6 +29,20 @@ sudo apt-get install -y python3-venv python3-dev ffmpeg ripgrep
 
 系统包也想自动装：`./tools/linux_setup.sh --all`（sudo 装系统包 + venv + 自检）。
 
+> **下载源**：装依赖走 `tools/pip_mirror.py`——并发探测阿里云 / 中科大 / 腾讯云 / 华为云 /
+> 清华 / 官方 PyPI，挑当下**真能下载**的源，装失败自动换下一个。为什么不写死一个：
+> 清华 PyPI 对云服务器 IP 段返回 403（能连上、但不给包），家宽却正常，写死必然坑掉一部分人。
+> 看各源实测状态：`python3 tools/pip_mirror.py --probe`；强制指定：
+> `export PHOENIX_PIP_INDEX=https://mirrors.aliyun.com/pypi/simple`。
+>
+> 另外：**3D 动作下载**（Mixamo）用的浏览器内核要单独装，约 150MB 且走国外 CDN，
+> 慢的话先设镜像再装：
+>
+> ```bash
+> export PLAYWRIGHT_DOWNLOAD_HOST=https://registry.npmmirror.com/-/binary/playwright
+> venv/bin/playwright install chromium
+> ```
+
 ### 1.1 拿到 API Key（首次必做）
 
 Phoenix 自己不带模型额度，对话和画图都要一把 API Key，默认走**硅基流动**：

@@ -114,8 +114,10 @@ if "%SETUP%"=="1" (
       )
     )
     echo 正在安装依赖（首次下载量较大，可能几分钟无输出，属正常）...
-    "!VPY!" -m pip install --no-input --disable-pip-version-check --upgrade pip
-    "!VPY!" -m pip install --no-input --disable-pip-version-check -r "%ROOT%\requirements.txt"
+    rem 走 tools/pip_mirror.py 而不是裸 pip：pip 默认源 pypi.org 国内常几 KB/s 甚至超时，
+    rem 而写死某个国内镜像同样不行——清华对云厂商 IP 段间歇 403。只能探测 + 失败换源。
+    "!VPY!" "%ROOT%\tools\pip_mirror.py" --upgrade pip
+    "!VPY!" "%ROOT%\tools\pip_mirror.py" -r "%ROOT%\requirements.txt"
     if errorlevel 1 (
       echo [X] 依赖安装失败，请检查网络或代理后重试
       pause

@@ -93,7 +93,7 @@ def main() -> int:
         return 1 if (miss or (gate and miss_cap)) else 0
     if miss:
         print("[X] 缺少启动必需依赖：" + ", ".join(p for _, p in miss))
-        print("    安装：python -m pip install -r requirements.txt")
+        print("    安装：python tools/pip_mirror.py -r requirements.txt   # 自动挑国内镜像源")
         print("    或一键补齐：phoenix.sh --setup  /  phoenix.bat --setup")
         return 1
     if miss_cap:

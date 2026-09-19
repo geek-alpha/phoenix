@@ -42,6 +42,14 @@
 而且服务端不报任何错 —— 所以这一步别省。
 
 1. 打开 <https://nodejs.org/> ，下载 **LTS 版（要 22.6 或更高）** 的 Windows 安装包（`.msi`）。
+   官网在国内可能只有几十 KB/s，慢的话用国内镜像（实测可用）：
+
+   ```text
+   https://registry.npmmirror.com/-/binary/node/v22.23.2/node-v22.23.2-x64.msi
+   ```
+
+   要装别的版本：打开 <https://registry.npmmirror.com/-/binary/node/> 挑版本目录，
+   Windows 包名是 `node-v<版本>-x64.msi`（32 位是 `-x86.msi`）。
 2. 一路「Next」装完，不用改任何选项。
 3. 验证（**新开**一个 cmd）：
 
@@ -109,12 +117,27 @@ phoenix.bat --setup
 | 阶段 | 大概耗时 | 你会看到 |
 | --- | --- | --- |
 | 建虚拟环境 | 10~30 秒 | `== 环境缺失或依赖不全：创建虚拟环境并安装依赖 ==` |
-| 装 Python 依赖 | **3~5 分钟** | `正在安装依赖（首次下载量较大，可能几分钟无输出，属正常）` |
+| 装 Python 依赖 | **3~5 分钟** | `正在安装依赖（首次下载量较大，可能几分钟无输出，属正常）`，前几行会列出探测到的 pip 源 |
 | 环境自检 | 几秒 | 一行行 `[OK]` / `[WARN]` |
 | 生成配置与证书 | 几秒 | 从 `settings.example.json` 生成 `settings.json`；现场签 TLS 证书 |
 | 启动服务 | 10~30 秒 | 打印启动横幅：`3D 虚拟 AI 角色陪聊 服务器已启动` + `本机访问` / `局域网` 两行地址 |
 
 看到那段启动横幅、并且列出了 `本机访问 : https://127.0.0.1:8000` 就是成功了。**这个黑窗口要保持开着**，关掉服务就停了。
+
+> **关于下载源**：装依赖走的是 `tools/pip_mirror.py`，它会先并发探测阿里云 / 中科大 / 腾讯云 /
+> 华为云 / 清华 / 官方 PyPI，挑一个当下**真能下载**的源，装失败还会自动换下一个。
+> 为什么要探测而不是写死一个：清华 PyPI 对云服务器 IP 段会返回 403（能连上、但不给包），
+> 家宽却正常 —— 写死哪个源都会坑掉一部分人。
+> 想看各源在你网络下的实测状态：`venv\Scripts\python.exe tools\pip_mirror.py --probe`；
+> 想强制指定：`set PHOENIX_PIP_INDEX=https://mirrors.aliyun.com/pypi/simple`。
+>
+> 另外：**3D 动作下载**（Mixamo）用的浏览器内核要单独装，约 150MB 且走国外 CDN，
+> 慢的话先设镜像再装：
+>
+> ```bat
+> set PLAYWRIGHT_DOWNLOAD_HOST=https://registry.npmmirror.com/-/binary/playwright
+> venv\Scripts\playwright install chromium
+> ```
 
 > 别拿 `Uvicorn running on ...` 当成功标志——服务的日志级别是 `warning`，这行 INFO 根本不会打印（实测 `journalctl` 里匹配数为 0）。
 
@@ -187,7 +210,7 @@ phoenix.bat --diag
 | 现象 | 原因 | 怎么办 |
 | --- | --- | --- |
 | 双击后黑窗一闪就没了 | 依赖缺失或端口占用，脚本 `exit` 时窗口跟着关了 | 开个 cmd 跑 `phoenix.bat`，或在目录里跑 `phoenix.bat --diag` |
-| 卡在「正在安装依赖」很久 | pip 在下载（正常），或网络不通 | 等满 5 分钟；还不行换国内镜像：`venv\Scripts\python.exe -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple` |
+| 卡在「正在安装依赖」很久 | pip 在下载（正常），或当前源慢/被限流 | 等满 5 分钟；还不行让脚本自己重新挑源：`venv\Scripts\python.exe tools\pip_mirror.py -r requirements.txt`（探测所有镜像 + 失败自动换源）。看各源实测状态：`venv\Scripts\python.exe tools\pip_mirror.py --probe` |
 | 报 `WinError 10013` / 端口被拒 | Hyper-V / WSL2 / Docker 保留了 8000 所在段，非管理员绑不上（管理员能绑，所以看着像「必须管理员运行」） | 服务输出里已经给了命令。管理员 PowerShell 任选其一：`net stop winnat && net start winnat`，或 `netsh int ipv4 add excludedportrange protocol=tcp startport=8000 numberofports=1`。查当前保留段：`netsh interface ipv4 show excludedportrange protocol=tcp` |
 | 报端口已被占用 | 另一个程序在 8000 上（常见：上一个 Phoenix 没关干净） | 服务会自动改用其它端口并在日志里写明；想手动清：`netstat -ano \| findstr :8000` 拿 PID → 任务管理器结束 |
 | 网页一直「连接中…」 | 没装 Node.js，或版本低于 22.6 | 见 §2；用 `node --version` 确认 ≥ v22.6 |

@@ -70,8 +70,18 @@ if [ "$DO_VENV" = "1" ]; then
     "$PY" -m venv "$ROOT/venv"
   fi
   VP="$ROOT/venv/bin/python"
+  # pip 默认走 pypi.org（国内常几 KB/s 甚至超时），写死某个国内镜像同样不行——
+  # 实测清华对云厂商 IP 段间歇 403。让 tools/pip_mirror.py 探测出当下真能下载的源。
+  INDEX="$("$VP" "$ROOT/tools/pip_mirror.py" --print-index 2>/dev/null || true)"
+  if [ -n "$INDEX" ]; then
+    echo "pip 源：$INDEX"
+    PIPOPT=(-i "$INDEX" --timeout 30 --retries 2)
+  else
+    echo "⚠ 没探测到可用的 pip 镜像源，退回 pip 默认源（可能很慢）"
+    PIPOPT=()
+  fi
   echo "升级 pip…"
-  "$VP" -m pip install --upgrade pip -q
+  "$VP" -m pip install --upgrade pip -q "${PIPOPT[@]+\"${PIPOPT[@]}\"}"
   echo "安装 requirements.txt（失败的包会被跳过并汇总）…"
   failed=()
   while IFS= read -r line; do
@@ -80,11 +90,12 @@ if [ "$DO_VENV" = "1" ]; then
     # `uvloop; sys_platform != "win32"` 会变成 `... != win32`，pip 直接报 InvalidRequirement。
     pkg="$(printf '%s' "$pkg" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
     [ -z "$pkg" ] && continue
-    "$VP" -m pip install -q "$pkg" || failed+=("$pkg")
+    "$VP" -m pip install -q "${PIPOPT[@]+\"${PIPOPT[@]}\"}" "$pkg" || failed+=("$pkg")
   done < requirements.txt
   if [ ${#failed[@]} -gt 0 ]; then
     echo "以下包安装失败（多为需要编译或平台不支持，通常不影响核心）："
     printf '  - %s\n' "${failed[@]}"
+    echo "  若怀疑是镜像限流，换源重试：$VP $ROOT/tools/pip_mirror.py -r requirements.txt"
   fi
   echo "venv 就绪：$VP"
 fi

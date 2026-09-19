@@ -103,6 +103,8 @@ phoenix.bat --setup       # Windows（双击也行）
 
 依赖清单两边共用一份 `requirements.txt`，平台差异用 PEP 508 环境标记表达：`uvloop`/`httptools` 标了 `sys_platform != "win32"`，在 Windows 上自动跳过——它们没有 Windows wheel，装了也 import 不了；服务启动时逐个探测，缺了自动退回 asyncio + h11。`bpy`/`bmesh`/`mathutils` 这类 Blender 内嵌模块不在 pip 面内，要用模型转换技能时装系统 Blender 并设 `PHOENIX_BLENDER` 指向它（旧名 `DABAI_BLENDER` 仍可用）。
 
+依赖默认从**国内镜像**装：`tools/pip_mirror.py` 会并发探测阿里云 / 中科大 / 腾讯云 / 华为云 / 清华 / 官方 PyPI，挑一个当下真能下载的源，装失败自动换下一个。为什么不写死一个——清华 PyPI 对云服务器 IP 段返回 403（能连上、但不给包），家宽却正常，写死必然坑掉一部分人。看各源实测状态：`python3 tools/pip_mirror.py --probe`；强制指定：`export PHOENIX_PIP_INDEX=https://mirrors.aliyun.com/pypi/simple`。
+
 ### 3. 打开网页
 
 浏览器访问 **https://127.0.0.1:8000**。首次是自签证书，浏览器提示「不安全」→ 高级 → 继续访问即可。首页要加载 3D 模型和几十个前端模块，**10~30 秒属正常**，状态点变绿即就绪。

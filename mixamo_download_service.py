@@ -128,7 +128,11 @@ class MixamoDownloadService:
     async def start(self, proto: Optional[str] = None):
         """启动浏览器（走代理）"""
         if not PLAYWRIGHT_AVAILABLE:
-            raise RuntimeError("Playwright 未安装，请先 pip install playwright && playwright install chromium")
+            raise RuntimeError(
+                "Playwright 未安装。装法：pip install playwright && playwright install chromium。"
+                "chromium 内核约 150MB 走国外 CDN，国内慢就加镜像："
+                "PLAYWRIGHT_DOWNLOAD_HOST=https://registry.npmmirror.com/-/binary/playwright"
+            )
         if self.is_running:
             return {"status": "already_running"}
 
