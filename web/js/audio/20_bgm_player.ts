@@ -8,12 +8,19 @@ export default function init_20_bgm_player(App: AppKernel) {
   // 音乐音量独立持久化（与视频/角色语音互不影响）：用户在音乐界面
   // 调好的音量跨歌曲、跨刷新沿用，不再被每次播放重置
   const MUSIC_VOLUME_KEY = 'dabai.musicVolume.v1';
+  // 默认音量 50%：用户没调过时的初始值（唯一来源，别在别处再写一遍）
+  const DEFAULT_MUSIC_VOLUME = 0.5;
   function loadMusicVolume(): number {
     try {
-      const v = Number(JSON.parse(localStorage.getItem(MUSIC_VOLUME_KEY) || 'null'));
-      if (isFinite(v) && v >= 0 && v <= 1) return v;
+      const raw = localStorage.getItem(MUSIC_VOLUME_KEY);
+      // 只认数字：JSON.parse('null') 得到 null，Number(null) 又是 0，能通过范围校验
+      // 把全新用户的音量设成静音（旧实现就是这个坑）
+      if (raw) {
+        const parsed: unknown = JSON.parse(raw);
+        if (typeof parsed === 'number' && isFinite(parsed) && parsed >= 0 && parsed <= 1) return parsed;
+      }
     } catch (e) { /* 读取失败用默认 */ }
-    return 0.5;
+    return DEFAULT_MUSIC_VOLUME;
   }
   let volume = loadMusicVolume();
   let lastTime = 0;       // 上次记录的播放位置

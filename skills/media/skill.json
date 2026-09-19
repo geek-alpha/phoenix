@@ -247,7 +247,7 @@
             },
             "volume": {
               "type": "number",
-              "description": "音量 0.0~1.0，默认约 0.8。"
+              "description": "音量 0.0~1.0；不传则沿用上次音量（初始 0.5）。"
             },
             "watch": {
               "type": "boolean",

@@ -838,8 +838,12 @@ export default (function init(App: AppKernel) {
           }
         case 'play_music':
           {
-            const vol = args.volume !== undefined ? args.volume : 0.8;
-            App.setBGMVolume(vol);
+            // 只有明确给了 volume 才动音量：否则沿用用户上次调好的值
+            // （初始 50%，见 20_bgm_player.ts 的 DEFAULT_MUSIC_VOLUME）
+            if (args.volume !== undefined) {
+              const vol = Number(args.volume);
+              if (Number.isFinite(vol)) App.setBGMVolume(vol);
+            }
             // 子智能体看护：server 会把 worker_id 注入屏幕指令，播完据此回报
             App._musicWorkerId = args.worker_id || null;
             const label = (args.title ? args.title : '在线音乐') + (args.artist ? ' - ' + args.artist : '');
@@ -869,8 +873,9 @@ export default (function init(App: AppKernel) {
               App.stopBGM();
               App.showToast('已停止播放音乐');
             } else if (action === 'volume') {
-              const v = args.value !== undefined ? Number(args.value) : 0.8;
-              if (Number.isFinite(v)) {
+              // value 必填（skill.json 与 music_impl 都校验），缺了就不动音量
+              const v = Number(args.value);
+              if (args.value !== undefined && Number.isFinite(v)) {
                 App.setBGMVolume(Math.max(0, Math.min(1, v)));
                 App.showToast('音乐音量已调整为 ' + Math.round(App.getBGMState().volume * 100) + '%');
               }
