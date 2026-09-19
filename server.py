@@ -379,6 +379,22 @@ _TS_IDLE_KILL_SEC = 120.0
 _TS_CACHE_MAX = 128              # 前端 .ts 约 69 个，留一倍余量
 _ts_cache: dict = {}             # 键=文件路径（只留最新版本），值=(etag, js_bytes)
 
+def _ts_node_exe() -> str:
+    """node 可执行文件：优先 phoenix.bat 自动装的私有目录，再走 PATH。
+
+    phoenix.bat 装完 Node 会往当前会话的 PATH 里塞路径，但用户直接跑
+    `venv\\Scripts\\python server.py` 时没这一步；而且系统里那份 node 可能是
+    低于 22.13 的旧版，不该让它抢在够用的私有版本前面被选中。
+    """
+    if os.name == "nt":
+        local = os.environ.get("LOCALAPPDATA")
+        if local:
+            exe = os.path.join(local, "Phoenix", "node", "node.exe")
+            if os.path.isfile(exe):
+                return exe
+    return "node"
+
+
 def _ts_start_worker():
     """启动常驻 worker（幂等）；失败置 _ts_node_broken，后续走原样直服。"""
     global _ts_node_worker, _ts_node_broken
@@ -387,7 +403,7 @@ def _ts_start_worker():
     try:
         _ts_node_worker = _ts_subprocess.Popen(
             # CommonJS 模式（-e 默认 CJS），worker 脚本里用 require()
-            ["node", "-e", _TS_WORKER_JS],
+            [_ts_node_exe(), "-e", _TS_WORKER_JS],
             stdin=_ts_subprocess.PIPE, stdout=_ts_subprocess.PIPE,
             stderr=_ts_subprocess.DEVNULL,
             text=True, encoding="utf-8", bufsize=1,

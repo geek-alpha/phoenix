@@ -28,6 +28,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))  # 同目录的 check_d
 # 独立进程也要同步新旧环境变量名：用户设了 PHOENIX_BLENDER，下面的 DABAI_* 旧读点
 # 也得看到同一个值（双向同步在 env_compat 里）。
 from env_compat import promote_legacy_env
+import install_node  # 同目录：Node 版本下限的单一来源（前端转译依赖它）
 
 promote_legacy_env()
 
@@ -111,15 +112,14 @@ def main() -> int:
     node = shutil.which("node")
     if not node:
         check("Node.js（前端必需）", WARN,
-              "未找到：网页会永远卡在「连接中…」。装 Node.js 22.6+ 后重启服务")
+              "未找到：网页会永远卡在「连接中…」。跑 phoenix.bat 会自动装，或手动装 Node.js 22.13+ 后重启服务")
     else:
         try:
-            raw = subprocess.run([node, "--version"], capture_output=True, text=True,
-                                 timeout=10).stdout.strip().lstrip("v")
-            major, minor = (int(x) for x in (raw.split(".") + ["0", "0"])[:2])
-            ok = (major, minor) >= (22, 6)
+            out = subprocess.run([node, "--version"], capture_output=True, text=True, timeout=10)
+            raw = (out.stdout or out.stderr).strip()
+            ok = install_node.is_supported(install_node.parse_version(raw))
             check("Node.js（前端必需）", OK if ok else WARN,
-                  raw if ok else f"{raw} 过低：需要 22.6+（module.stripTypeScriptTypes），否则网页卡在「连接中…」")
+                  raw.lstrip("v") if ok else f"{raw} 过低：需要 22.13+ / 23.2+（module.stripTypeScriptTypes 的 Added in 版本），否则网页卡在「连接中…」")
         except Exception as e:
             check("Node.js（前端必需）", WARN, f"版本探测失败：{e.__class__.__name__}: {e}")
     blender = shutil.which("blender") or os.environ.get("PHOENIX_BLENDER", "")

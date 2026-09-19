@@ -15,7 +15,11 @@
 
 需要装两样东西：**Python**（跑服务）和 **Node.js**（网页界面必需）。Git、ffmpeg、Chrome 都是可选的。
 
-## 1. 装 Python（必需）
+这两样 `phoenix.bat` 首次运行会**自动装好**（Python 走华为云镜像 / 官网安装包，Node 走
+npmmirror 的 zip 解压到 `%LOCALAPPDATA%\Phoenix\node`，全程不需要管理员）。§1、§2 是
+**自动安装失败时的手动路径** —— 赶时间可以跳过，直接从 §3 开始。
+
+## 1. 装 Python（自动装，装不上时看这节）
 
 1. 打开 <https://www.python.org/downloads/windows/> ，下载 **Python 3.12** 的
    「Windows installer (64-bit)」。
@@ -35,13 +39,13 @@
    - 敲 `python` 却弹出微软应用商店：那是 Windows 的「应用别名」在拦路。去
      `设置 → 应用 → 高级应用设置 → 应用执行别名`，把 `python.exe` / `python3.exe` 两项关掉。
 
-## 2. 装 Node.js（必需，最容易漏）
+## 2. 装 Node.js（自动装，装不上时看这节）
 
 **为什么必需**：Phoenix 的前端是 TypeScript 源码直服，靠 Node 自带的类型剥离能力实时转译成 JS
 （`server.py:345`）。没有 Node，服务照样能启动、网页也能打开，但会**永远停在「连接中…」**，
 而且服务端不报任何错 —— 所以这一步别省。
 
-1. 打开 <https://nodejs.org/> ，下载 **LTS 版（要 22.6 或更高）** 的 Windows 安装包（`.msi`）。
+1. 打开 <https://nodejs.org/> ，下载 **LTS 版（要 22.13 或更高）** 的 Windows 安装包（`.msi`）。
    官网在国内可能只有几十 KB/s，慢的话用国内镜像（实测可用）：
 
    ```text
@@ -57,8 +61,8 @@
    node --version
    ```
 
-   要输出 `v22.6.0` 或更高。低于 22.6 的版本没有 `module.stripTypeScriptTypes`，
-   网页一样打不开 —— 去官网下新版覆盖安装。
+   要输出 `v22.13.0` 或更高（23 线要 `v23.2.0` 以上）。`module.stripTypeScriptTypes`
+   的 Added in 就是这两个版本，低于它网页一样打不开 —— 去官网下新版覆盖安装。
 
 ## 3. 拿到 Phoenix
 
@@ -105,7 +109,7 @@ git clone https://github.com/geek-alpha/phoenix.git
 
 ## 5. 一键启动
 
-第一次**必须带 `--setup`**——直接双击 `phoenix.bat` 只会启动、不会装依赖，缺依赖时它会停下来提示你补跑。开 cmd 跑：
+直接双击就行：脚本发现缺虚拟环境 / 缺 Python / 缺 Node.js 会自己装上。想强制重跑一遍安装（比如上次装到一半断了）再带 `--setup`：
 
 ```bat
 cd %USERPROFILE%\Phoenix
@@ -116,6 +120,8 @@ phoenix.bat --setup
 
 | 阶段 | 大概耗时 | 你会看到 |
 | --- | --- | --- |
+| 装 Python（仅当没装过） | 1~3 分钟 | `== 未找到 Python，自动安装 Python 3.12（用户级，不需要管理员）==` |
+| 装 Node.js（仅当没装 / 版本低） | 1~3 分钟 | `[OK] Node.js：C:\Users\...\Phoenix\node\node.exe` |
 | 建虚拟环境 | 10~30 秒 | `== 环境缺失或依赖不全：创建虚拟环境并安装依赖 ==` |
 | 装 Python 依赖 | **3~5 分钟** | `正在安装依赖（首次下载量较大，可能几分钟无输出，属正常）`，前几行会列出探测到的 pip 源 |
 | 环境自检 | 几秒 | 一行行 `[OK]` / `[WARN]` |
@@ -205,7 +211,7 @@ https://<电脑的局域网IP>:8000/setup
 phoenix.bat --diag
 ```
 
-它会打印：解释器路径、依赖缺失清单、8000 端口占用、Windows 保留端口段、yt-dlp / ffmpeg、是否管理员。
+它会打印：解释器路径、依赖缺失清单、8000 端口占用、Windows 保留端口段、yt-dlp / ffmpeg、Node.js 版本、是否管理员。
 
 | 现象 | 原因 | 怎么办 |
 | --- | --- | --- |
@@ -213,7 +219,7 @@ phoenix.bat --diag
 | 卡在「正在安装依赖」很久 | pip 在下载（正常），或当前源慢/被限流 | 等满 5 分钟；还不行让脚本自己重新挑源：`venv\Scripts\python.exe tools\pip_mirror.py -r requirements.txt`（探测所有镜像 + 失败自动换源）。看各源实测状态：`venv\Scripts\python.exe tools\pip_mirror.py --probe` |
 | 报 `WinError 10013` / 端口被拒 | Hyper-V / WSL2 / Docker 保留了 8000 所在段，非管理员绑不上（管理员能绑，所以看着像「必须管理员运行」） | 服务输出里已经给了命令。管理员 PowerShell 任选其一：`net stop winnat && net start winnat`，或 `netsh int ipv4 add excludedportrange protocol=tcp startport=8000 numberofports=1`。查当前保留段：`netsh interface ipv4 show excludedportrange protocol=tcp` |
 | 报端口已被占用 | 另一个程序在 8000 上（常见：上一个 Phoenix 没关干净） | 服务会自动改用其它端口并在日志里写明；想手动清：`netstat -ano \| findstr :8000` 拿 PID → 任务管理器结束 |
-| 网页一直「连接中…」 | 没装 Node.js，或版本低于 22.6 | 见 §2；用 `node --version` 确认 ≥ v22.6 |
+| 网页一直「连接中…」 | 没装 Node.js，或版本低于 22.13（23 线要 23.2） | 重新跑 `phoenix.bat` 会自动装一份；排查用 `phoenix.bat --diag` 看 Node 版本，或 `node --version` 确认 ≥ v22.13 |
 | 网页能开，一进去就弹「还没填大模型 API Key」 | 首次安装还没配 Key（settings.json 里 api_key 是空串） | 见 §4：设置 → 模型供应商填入并保存。老版本没这条提示，表现是「连上了但发消息没反应」，服务窗口里一个 `Missing credentials` 报错 |
 | 网页能开，但说话没反应 / 画不出图 | API Key 没填或填错 | 见 §4、§7；语音识别没 Key 会直接报「未配置 API Key」 |
 | 中文变乱码 | 控制台代码页不是 UTF-8 | `phoenix.bat` 已自动 `chcp 65001`；自己手敲命令的话先执行一次 `chcp 65001` |

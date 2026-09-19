@@ -2,7 +2,7 @@
 rem Phoenix Windows 启动脚本（与 phoenix.sh 等价）
 rem
 rem 用法：
-rem   phoenix.bat              启动 server.py（首次运行自动建 venv + 装依赖）
+rem   phoenix.bat              启动 server.py（首次运行自动建 venv + 装依赖；缺 Python/Node 时自动安装）
 rem   phoenix.bat --setup      强制重跑安装：建 venv + 装依赖 + 自检 + 启动
 rem   phoenix.bat --check      只做环境自检，不启动
 rem
@@ -74,9 +74,11 @@ if not defined BASEPY (
   if not errorlevel 1 set "BASEPY=python"
 )
 if not defined BASEPY (
-  echo [X] 找不到 Python，请安装 Python 3.10+，或设置 PHOENIX_PYTHON 指向解释器
-  pause
-  exit /b 1
+  call :install_python
+  if not defined BASEPY (
+    pause
+    exit /b 1
+  )
 )
 
 set "VPY=%ROOT%\venv\Scripts\python.exe"
@@ -131,6 +133,35 @@ set "PYCMD="
 if exist "!VPY!" set PYCMD="!VPY!"
 if not defined PYCMD set "PYCMD=%BASEPY%"
 
+rem ---- Node.js：前端 .ts 实时转译的硬依赖 ----
+rem 缺 Node 时服务照常启动、网页也能打开，但会永远停在「连接中…」，而服务端一行错
+rem 都不报 —— 最容易被当成「这程序坏了」的故障。所以在这里拦住并自动装一份到用户
+rem 目录（不需要管理员，也不覆盖用户自己装的 Node）。
+rem 用 goto 而不是 if(...) 块：install_node.py 的 FAIL 信息里可能带半角括号，
+rem 在块里会把块提前闭合掉。
+if "%CHECKONLY%"=="1" goto node_done
+if "%DIAG%"=="1" goto node_done
+set "PYTHONUTF8=1"
+set "NODE_LINE="
+for /f "usebackq delims=" %%L in (`%PYCMD% "%ROOT%\tools\install_node.py" --ensure`) do set "NODE_LINE=%%L"
+if not defined NODE_LINE set "NODE_LINE=FAIL install_node.py 没有任何输出（解释器报错？）"
+if not "!NODE_LINE:~0,3!"=="OK " goto node_fail
+set "NODE_EXE=!NODE_LINE:~3!"
+for %%I in ("!NODE_EXE!") do set "PATH=%%~dpI;!PATH!"
+echo [OK] Node.js：!NODE_EXE!
+goto node_done
+
+:node_fail
+echo [X] !NODE_LINE!
+echo     网页会永远卡在「连接中…」。请手动装 Node.js 22.13+（或 23.2+）：
+echo       https://nodejs.org/
+echo       国内镜像 https://registry.npmmirror.com/-/binary/node/
+if not defined PHOENIX_NO_AUTO_INSTALL (
+  pause
+  exit /b 1
+)
+:node_done
+
 rem ---- 环境自检（--check 只自检不启动）----
 if "%CHECKONLY%"=="1" (
   %PYCMD% "%ROOT%\tools\selfcheck.py"
@@ -161,6 +192,9 @@ if "%DIAG%"=="1" (
   echo [yt-dlp / ffmpeg]
   if exist "!VPY!" "!VPY!" -c "import importlib.util as u;print('  yt-dlp:', 'OK' if u.find_spec('yt_dlp') else '缺失')"
   where ffmpeg 2>nul
+  echo.
+  echo [Node.js（前端 .ts 转译；缺了网页永远停在「连接中…」）]
+  !PYCMD! "!ROOT!\tools\install_node.py" --check
   echo.
   echo [是否管理员]
   net session >nul 2>&1
@@ -205,12 +239,76 @@ exit /b %RC%
 :usage
 echo Phoenix Windows 启动脚本
 echo.
-echo   phoenix.bat              启动 server.py（首次运行会自动建 venv 装依赖）
+echo   phoenix.bat              启动 server.py（首次运行自动建 venv 装依赖；缺 Python/Node 时自动安装）
 echo   phoenix.bat --setup      强制重跑安装：建 venv + 装依赖 + 自检 + 启动
 echo   phoenix.bat --check      只做环境自检，不启动
 echo   phoenix.bat --diag       打印环境诊断（起不来/卡住时先跑这条）
 echo.
 echo 环境变量：
-echo   PHOENIX_PYTHON  指定解释器
-echo   PHOENIX_PORT    覆盖端口
+echo   PHOENIX_PYTHON            指定解释器
+echo   PHOENIX_PORT              覆盖端口
+echo   PHOENIX_NO_AUTO_INSTALL   设了就不自动装 Python / Node.js，只报错
+exit /b 0
+
+rem ============================================================
+rem 子程序：自动安装 Python（只在探不到任何解释器时调用）
+rem ============================================================
+:install_python
+rem 装到 %LOCALAPPDATA%\Programs\Python\Python312（用户级，不需要管理员权限）。
+rem 安装器自带 PrependPath=1 会写用户 PATH，但当前 cmd 会话的 PATH 是启动时的快照、
+rem 不会自动刷新，所以下面按固定路径再探一次 —— 少了这步就是「装完了还说找不到」。
+if defined PHOENIX_NO_AUTO_INSTALL (
+  echo [X] 找不到 Python，且已设 PHOENIX_NO_AUTO_INSTALL（禁用自动安装）
+  echo     手动装：https://www.python.org/downloads/windows/
+  echo     安装第一屏务必勾上 Add python.exe to PATH
+  exit /b 1
+)
+where curl >nul 2>nul
+if errorlevel 1 (
+  echo [X] 找不到 Python，且系统没有 curl（Win10 1803+ 才自带），无法自动下载
+  echo     手动装：https://www.python.org/downloads/windows/
+  echo     安装第一屏务必勾上 Add python.exe to PATH
+  exit /b 1
+)
+echo == 未找到 Python，自动安装 Python 3.12（用户级，不需要管理员）==
+set "PYSETUP=%TEMP%\phoenix-python-3.12.8-amd64.exe"
+set "PYSIZE=0"
+if exist "!PYSETUP!" for %%F in ("!PYSETUP!") do set "PYSIZE=%%~zF"
+if !PYSIZE! LSS 10000000 (
+  echo 正在下载安装包（约 27 MB）...
+  curl -L --fail --connect-timeout 20 --max-time 900 -o "!PYSETUP!" "https://mirrors.huaweicloud.com/python/3.12.8/python-3.12.8-amd64.exe"
+  if errorlevel 1 (
+    echo     华为云镜像失败，改用官方源重试...
+    curl -L --fail --connect-timeout 20 --max-time 900 -o "!PYSETUP!" "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
+  )
+  set "PYSIZE=0"
+  if exist "!PYSETUP!" for %%F in ("!PYSETUP!") do set "PYSIZE=%%~zF"
+)
+if !PYSIZE! LSS 10000000 (
+  echo [X] 安装包下载失败或不完整（!PYSIZE! 字节）
+  del "!PYSETUP!" 2>nul
+  echo     请检查网络或代理后重试，或手动装：
+  echo     https://www.python.org/downloads/windows/
+  echo     安装第一屏务必勾上 Add python.exe to PATH
+  exit /b 1
+)
+echo 正在静默安装（约 1-3 分钟，期间没有输出是正常的）...
+rem 不看安装器返回码：3010（成功但需重启）也算成功。一律以能否探到解释器为准。
+"!PYSETUP!" /quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1 Include_test=0
+for %%V in (314 313 312 311 310) do (
+  if not defined BASEPY if exist "%LOCALAPPDATA%\Programs\Python\Python%%V\python.exe" set "BASEPY=%LOCALAPPDATA%\Programs\Python\Python%%V\python.exe"
+)
+if not defined BASEPY (
+  where py >nul 2>nul
+  if not errorlevel 1 set "BASEPY=py -3"
+)
+if not defined BASEPY (
+  echo [X] 安装程序跑完了，但仍探不到 Python 解释器
+  echo     可以手动双击这个安装包看报错：!PYSETUP!
+  echo     或手动装：https://www.python.org/downloads/windows/
+  echo     安装第一屏务必勾上 Add python.exe to PATH
+  exit /b 1
+)
+del "!PYSETUP!" 2>nul
+echo == Python 已就绪：!BASEPY! ==
 exit /b 0
