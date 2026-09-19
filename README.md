@@ -55,6 +55,49 @@ journalctl -u myservice.service -f   # 日志在这里，不在文件里
 
 两条经验（2026-09-13 实测）：① 不要自己 kill + spawn —— systemd 会在 3 秒后自己拉起，脚本再起的第二个实例只会 bind 失败；② 进程的 stdout 接的是 journald socket，所以「日志文件为空」不代表没日志，先看 `journalctl -u <unit>`。判断谁在托管只需一条命令：`cat /proc/<pid>/cgroup`。
 
+## 📦 发布包里有什么、缺什么
+
+发行包**不含私有模块与私有数据**，代码对它们一律做了可选依赖处理：缺了服务照常启动，只少对应功能。
+
+### 私有模块（不随包发布，缺失时自动降级）
+
+| 模块 | 缺失后的行为 |
+| --- | --- |
+| `email_verify.py` | 邮箱验证码注册与找回密码关闭：`/api/auth/status` 返回 `email_ready=false`（`server.py:822`），登录页自行隐藏邮箱入口；发码 / 换票据接口返回 400 `email_verify_disabled`（`server.py:840`、`server.py:869`），`auth_core.py:253`、`auth_core.py:424` 同样拒绝。**不会放行未验证的邮箱。** |
+| `peer_watch.py` | 联邦节点观测关闭（`peer_mesh.py:400`），其余功能不受影响。 |
+
+打包器把 `try/except ImportError` 直接包住的 import 判为可选依赖，单列提醒、不拦打包；裸 import 仍会拒绝出包（`deploy/release/build_release.py`）。
+
+### 私有数据文件（不随包发布，首次运行自动生成）
+
+读它们的代码自己兜默认值——`agent.py:1013` 的 `_read_json_or(path, default)`、`memory.py:2049` 读 `settings.json` 失败即用内置默认参数——所以缺文件不会让服务起不来；`tools/`、`tests/` 里的探针会直接 `FileNotFoundError`。
+
+```text
+character_cards.json   role_card_users.json   chat_memory.db   conviction.json
+gene_stats.json   harness_task_memory.json   long_horizon.json   settings.json
+skills/tasks/data/tasks.json   tts_config.json   video_favorites.json
+```
+
+清单不用手抄，按 AST 从代码里现算：
+
+```bash
+python3 deploy/release/build_release.py --list
+# ! 11 个数据文件被 tools/tests 直接引用、但包里没有（跑探针会 FileNotFoundError）：
+#     character_cards.json ← agent.py, server.py, tools/role_card_isolation_probe.py（3 处引用…）
+```
+
+### 纯净环境下已知为红的 4 个用例（不是代码缺陷）
+
+| 用例 | 原因 |
+| --- | --- |
+| `tests/test_turn_handoff.py`（2 个） | 直读 `settings.json`，缺文件即 `FileNotFoundError` |
+| `tests/test_autoload_skill.py::test_real_harness_loads_code_ops` | 缺 `settings.json` → `harness.progressive_disclosure` 取默认 `False`（`harness/core.py:349`），技能工具全部常驻，`shell_run` 落在基础工具里，与该用例的假设相反 |
+| `tests/test_longrun_view.py::test_snapshot_has_fields_frontend_needs` | 长跑任务从未运行过，运行状态文件不存在，快照 `created_at=0` |
+
+### 实例路径
+
+不硬编码实例路径：`PHOENIX_HOME` 环境变量优先，回退按文件自身位置解析仓库根（`deploy/release/update.py:55`、`deploy/release/watch_release.py:122`）。
+
 ## 📁 项目结构
 
 ```text
