@@ -68,7 +68,7 @@ from agent import (AIAgent, TextDelta, ToolCallProgress, ToolCallResult,
                    ToolCallStart, ThinkingDelta, StreamDelta, ReasoningDelta,
                    FinalText, UsageEvent, TurnStatus, get_available_tools,
                    active_role_card_id, load_card_users, role_card_of, save_card_users,
-                   migrate_legacy_active_card)
+                   migrate_legacy_active_card, DEFAULT_TEMPERATURE)
 from ai_autonomy import AutonomyHub
 from perception_dispatcher import PerceptionDispatcher, EventCategory
 from reward_memory import RewardMemory
@@ -3171,7 +3171,7 @@ def _providers_payload(cfg: dict) -> dict:
     return {
         "providers": providers_out,
         "active_id": active["id"] if active else "",
-        "temperature": cfg.get("temperature", 0.2),
+        "temperature": cfg.get("temperature", DEFAULT_TEMPERATURE),
     }
 
 
@@ -3193,7 +3193,7 @@ async def llm_config_get():
         payload["images_model"] = str(cfg.get("images_model") or "")
         return payload
     except Exception as e:
-        return {"providers": [], "active_id": "", "temperature": 0.2, "error": str(e)}
+        return {"providers": [], "active_id": "", "temperature": DEFAULT_TEMPERATURE, "error": str(e)}
 
 
 @app.post("/api/llm/config")

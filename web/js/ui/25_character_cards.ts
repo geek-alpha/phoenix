@@ -69,7 +69,7 @@ export default (function init(App: AppKernel) {
     App.rcLlmVision?.addEventListener('change', () => App.refreshRcLlmVisionTip?.());
     App.rcLlmModel?.addEventListener('change', () => App.refreshRcLlmVisionTip?.());
     // 缓存全局默认温度（卡片未单独设定时沿用）
-    App.rcLlmDefaultTemp = 0.2;
+    App.rcLlmDefaultTemp = 0.3;
     fetch('/api/llm/config').then(r => r.json()).then(cfg => {
       if (cfg && cfg.temperature != null) App.rcLlmDefaultTemp = Number(cfg.temperature);
     }).catch(() => {});
@@ -336,7 +336,7 @@ export default (function init(App: AppKernel) {
     if (presetModel && App.rcLlmModel) App.rcLlmModel.value = presetModel;
     const temp = (llm.temperature != null && llm.temperature !== '')
       ? Number(llm.temperature)
-      : (App.rcLlmDefaultTemp ?? 0.2);
+      : (App.rcLlmDefaultTemp ?? 0.3);
     App.rcLlmTemperature.value = temp;
     App.rcLlmTempVal.textContent = Number(temp).toFixed(2);
     if (App.rcLlmVision) {

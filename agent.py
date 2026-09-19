@@ -97,6 +97,9 @@ SINGLE_RESULT_MAX_TOKENS = 5000
 # 截回一半。这是「每轮失效」→「每 N 轮失效一次」的唯一开关，见
 # Agent._stable_history_messages 的实测数据。
 HIST_VIEW_MAX_TOKENS = 16000
+# 采样温度默认值。出厂模板写 1.6、代码兜底写 0.2，两套值长期打架；1.6 对工具调用型
+# agent 太高（同一句话反复改口、工具参数乱飘）。统一收敛到这一处。
+DEFAULT_TEMPERATURE = 0.3
 # 单轮内最多同时注册的工具定义数（渐进式披露的轮内上限）。
 # 上限的用途是「别让工具 schema 无限膨胀」，不是「省一点常驻开销」：
 # tools 排在请求最前，卸载一个技能 = 从数组中间删元素 → 其后全部重排 →
@@ -3375,7 +3378,7 @@ class AIAgent:
             kwargs = dict(
                 model=config["model"],
                 messages=_msgs,
-                temperature=config.get("temperature", 0.2),
+                temperature=config.get("temperature", DEFAULT_TEMPERATURE),
                 max_tokens=_tool_max_tokens(),
                 top_p=config.get("top_p", 0.9),
                 stream=False,
@@ -4929,7 +4932,7 @@ class AIAgent:
                     _tool_kwargs = dict(
                         model=config["model"],
                         messages=messages,
-                        temperature=config.get("temperature", 0.2),
+                        temperature=config.get("temperature", DEFAULT_TEMPERATURE),
                         max_tokens=_tool_max_tokens(),
                         top_p=config.get("top_p", 0.9),
                         stream=False,
@@ -4985,7 +4988,7 @@ class AIAgent:
                         kwargs = dict(
                             model=config["model"],
                             messages=messages,
-                            temperature=config.get("temperature", 0.2),
+                            temperature=config.get("temperature", DEFAULT_TEMPERATURE),
                             max_tokens=_tool_max_tokens(),
                             top_p=config.get("top_p", 0.9),
                             stream=True,
