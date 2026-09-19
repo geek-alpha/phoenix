@@ -20,6 +20,7 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import gzip
 import io
 import json
@@ -105,16 +106,47 @@ def collect(root: Path) -> Tuple[List[Tuple[str, Path]], List[str], Dict[str, Li
     return include, missing, excluded
 
 
-def local_import_gaps(root: Path, pairs: List[Tuple[str, Path]]) -> List[str]:
-    """包内代码 import 的本地模块，有没有没进包的。
+def _imported_modules(tree: ast.AST) -> set:
+    mods: set = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            mods.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level == 0 and node.module:
+                mods.add(node.module.split(".")[0])
+    return mods
+
+
+def _optional_modules(tree: ast.AST) -> set:
+    """被 try 直接包住的 import：ImportError 时能降级，不算缺口。
+
+    只看 try 体的直接语句（嵌套 try 也会被 ast.walk 单独访问），不进函数/类内部 ——
+    函数里的 import 是运行时才执行的，包不包在 try 里不影响「装上起不起得来」。
+    """
+    opt: set = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Try):
+            continue
+        for stmt in node.body:
+            if isinstance(stmt, (ast.Import, ast.ImportFrom)):
+                opt |= _imported_modules(stmt)
+    return opt
+
+
+def local_import_gaps(root: Path, pairs: List[Tuple[str, Path]]) -> Tuple[List[str], List[str]]:
+    """包内代码 import 的本地模块，有没有没进包的。返回 (缺口, 可选依赖)。
 
     包 = git 跟踪的文件集。auth_core / peer_mesh / turn_quota 被 server.py:44/47/48
     逐个 import，却从未入仓 —— 打包器一声不响，另两台装上直接起不来。
     这个检查让缺口在打包时就炸，而不是在别人机器上。
+
+    被 try/except 包住的 import 是可选依赖：开源包刻意不带 email_verify /
+    peer_watch（含 SMTP 凭证与本机联邦逻辑），缺了只是降级运行 —— 单列出来
+    提醒，不拦打包。用 AST 而不是正则：正则看不出缩进层级，分不清必选与可选。
     """
-    import re
     packaged = {rel for rel, _ in pairs}
     gaps: List[str] = []
+    optional: List[str] = []
     seen = set()
     for rel, abs_path in pairs:
         if not rel.endswith(".py"):
@@ -123,18 +155,25 @@ def local_import_gaps(root: Path, pairs: List[Tuple[str, Path]]) -> List[str]:
             text = abs_path.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
-        for mod in re.findall(r"^\s*(?:import|from)\s+([A-Za-z_]\w*)", text, re.M):
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            continue
+        opt = _optional_modules(tree)
+        for mod in _imported_modules(tree):
             if (rel, mod) in seen:
                 continue
             seen.add((rel, mod))
             if f"{mod}.py" in packaged or f"{mod}/__init__.py" in packaged:
                 continue
-            # 磁盘上确实有这个名字的本地模块，但它不在包里 —— 缺口
-            if (root / f"{mod}.py").is_file():
+            # 磁盘上确实有这个名字的本地模块，但它不在包里
+            if not ((root / f"{mod}.py").is_file() or (root / mod / "__init__.py").is_file()):
+                continue
+            if mod in opt:
+                optional.append(f"{rel} → {mod}（可选依赖，缺失时降级运行）")
+            else:
                 gaps.append(f"{rel} → import {mod}，但 {mod}.py 不在包内（未入仓）")
-            elif (root / mod / "__init__.py").is_file():
-                gaps.append(f"{rel} → import {mod}，但 {mod}/ 不在包内（未入仓）")
-    return sorted(set(gaps))
+    return sorted(set(gaps)), sorted(set(optional))
 
 
 _TS_REF = re.compile(r"""(?:from|import)\s*\(?\s*["'](\.[^"']*)["']""")
@@ -296,7 +335,8 @@ def main() -> int:
         return 1
 
     front_hard, front_soft = frontend_gap(root, pairs)
-    gaps = local_import_gaps(root, pairs) + front_hard
+    import_gaps, optional_gaps = local_import_gaps(root, pairs)
+    gaps = import_gaps + front_hard
     if gaps:
         print(f"✘ 有 {len(gaps)} 处引用指向未入仓的本地文件（装上会起不来）：")
         for g in gaps[:20]:
@@ -311,6 +351,11 @@ def main() -> int:
         for g in front_soft[:10]:
             print("   ", g)
         print("   （paths.py 已声明为本机私有，不拦打包；新机器需自行同步这些文件）")
+
+    if optional_gaps:
+        print(f"! {len(optional_gaps)} 处可选依赖不在包内（缺失时自动降级）：")
+        for g in optional_gaps[:10]:
+            print("   ", g)
 
     if args.list:
         print(f"版本 {version}：{len(pairs)} 个文件会进包")

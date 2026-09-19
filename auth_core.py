@@ -23,7 +23,12 @@ import unicodedata
 from pathlib import Path
 from typing import Optional
 
-import email_verify
+try:
+    import email_verify
+except ImportError:
+    # 开源包不带邮箱验证（含 SMTP 凭证与发信逻辑）。缺了不能放行未验证的邮箱 ——
+    # 自助注册只剩 GitHub，建号走管理员，找回密码走人工。
+    email_verify = None  # type: ignore[assignment]
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 USERS_FILE = DATA_DIR / "users.json"
@@ -243,6 +248,9 @@ def register(name: str, pwd: str, device: str = "", role: str = "", ip: str = ""
     # 匿名可弃的身份 —— 出事时连人都找不到，也永远做不了「邮箱找回密码」。
     email_ok = False
     if ip and not github_id:
+        if email_verify is None:
+            raise AuthError("本实例未启用邮箱验证，请用 GitHub 登录，或联系管理员建号",
+                            "email_verify_disabled")
         if "@" not in n:
             raise AuthError("请用邮箱注册（收验证码），或直接用 GitHub 登录", "email_required")
         email_ok = email_verify.verify_ticket(n, email_ticket)
@@ -411,6 +419,9 @@ def reset_password(uid: str, pwd: str, email_ticket: str = "") -> dict:
     email = str(u.get("email") or "")
     if not (email and u.get("email_verified")):
         raise AuthError("这个账号没有验证过的邮箱，没法自助找回密码", "email_unverified")
+    if email_verify is None:
+        raise AuthError("本实例未启用邮箱验证，没法自助找回密码，请联系管理员",
+                        "email_verify_disabled")
     if not email_verify.verify_ticket(email, email_ticket):
         raise AuthError("邮箱还没验证，请先点「获取验证码」", "email_unverified")
     _check_pwd(pwd)

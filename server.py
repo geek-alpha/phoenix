@@ -44,7 +44,12 @@ from starlette.websockets import WebSocketState
 
 import attach_text
 import auth_core
-import email_verify
+try:
+    import email_verify
+except ImportError:
+    # 开源包不带邮箱验证：注册只剩 GitHub / 管理员建号，/api/auth/status 会报
+    # email_ready=false，登录页自行隐藏邮箱 tab。
+    email_verify = None  # type: ignore[assignment]
 import music_lib
 import peer_mesh
 import turn_quota
@@ -814,7 +819,7 @@ def _client_ip(request: Request) -> str:
 async def auth_status():
     """登录页启动时问一句：要不要显示注册 tab。免登录可访问，不泄用户名单。"""
     return {"ok": True, "registration_open": auth_core.registration_open(),
-            "email_ready": email_verify.smtp_ready(),
+            "email_ready": email_verify is not None and email_verify.smtp_ready(),
             "first_run": auth_core.user_count() == 0}
 
 
@@ -830,6 +835,9 @@ def auth_email_send(payload: dict, request: Request):
     if auth_core.find_by_name(email):
         return JSONResponse({"error": "这个邮箱已经注册过了，直接登录就行",
                              "code": "name_taken"}, status_code=400)
+    if email_verify is None:
+        return JSONResponse({"error": "本实例未启用邮箱验证，请用 GitHub 登录",
+                             "code": "email_verify_disabled"}, status_code=400)
     try:
         out = email_verify.send_code(email, _client_ip(request) or "lan")
     except email_verify.MailError as e:
@@ -856,6 +864,9 @@ async def auth_register(payload: dict, request: Request):
     if "@" not in name:
         return JSONResponse({"error": "请用邮箱注册（收验证码），或直接用 GitHub 登录",
                              "code": "email_required"}, status_code=400)
+    if email_verify is None:
+        return JSONResponse({"error": "本实例未启用邮箱验证，请用 GitHub 登录",
+                             "code": "email_verify_disabled"}, status_code=400)
     try:
         ticket = email_verify.check_code(name, payload.get("email_code", ""))
     except email_verify.MailError as e:

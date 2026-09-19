@@ -346,12 +346,13 @@ def test_import_gap_is_detected(tmp_path):
     (tmp_path / "server.py").write_text("import auth_core\nimport json\n", encoding="utf-8")
     (tmp_path / "auth_core.py").write_text("x = 1\n", encoding="utf-8")
     pairs = [("server.py", tmp_path / "server.py")]
-    gaps = build_mod.local_import_gaps(tmp_path, pairs)
+    gaps, optional = build_mod.local_import_gaps(tmp_path, pairs)
     assert gaps, "缺模块竟然没报出来"
     assert "auth_core" in gaps[0]
+    assert not optional, "必选依赖不该被算成可选"
 
     pairs.append(("auth_core.py", tmp_path / "auth_core.py"))
-    assert build_mod.local_import_gaps(tmp_path, pairs) == []
+    assert build_mod.local_import_gaps(tmp_path, pairs) == ([], [])
 
 
 def test_third_party_imports_are_not_flagged(tmp_path):
@@ -359,13 +360,29 @@ def test_third_party_imports_are_not_flagged(tmp_path):
     (tmp_path / "server.py").write_text(
         "import os\nimport fastapi\nfrom pathlib import Path\n", encoding="utf-8")
     pairs = [("server.py", tmp_path / "server.py")]
-    assert build_mod.local_import_gaps(tmp_path, pairs) == []
+    assert build_mod.local_import_gaps(tmp_path, pairs) == ([], [])
+
+
+def test_optional_import_is_not_a_gap(tmp_path):
+    """try/except 包住的 import 是可选依赖：缺了只降级，不该拦打包。
+
+    开源包刻意不带 email_verify / peer_watch（含 SMTP 凭证与本机联邦逻辑），
+    auth_core / server 用 try 导入它们 —— 那是有意为之，不是漏了 git add。
+    """
+    (tmp_path / "auth_core.py").write_text(
+        "try:\n    import email_verify\nexcept ImportError:\n    email_verify = None\n",
+        encoding="utf-8")
+    (tmp_path / "email_verify.py").write_text("x = 1\n", encoding="utf-8")
+    pairs = [("auth_core.py", tmp_path / "auth_core.py")]
+    gaps, optional = build_mod.local_import_gaps(tmp_path, pairs)
+    assert not gaps, "可选依赖被误判成缺口"
+    assert any("email_verify" in o for o in optional)
 
 
 def test_real_repo_has_no_import_gaps():
     """真仓库不许有缺口：以后新增模块忘了 git add，这条测试会红。"""
     pairs, _missing, _excluded = build_mod.collect(REPO)
-    gaps = build_mod.local_import_gaps(REPO, pairs)
+    gaps, _optional = build_mod.local_import_gaps(REPO, pairs)
     assert not gaps, "有模块被 import 但没入仓：\n" + "\n".join(gaps)
 
 
