@@ -77,11 +77,12 @@ def _serial() -> str | None:
     return picked
 
 
-SHOT_DIR = Path("/home/wxf/dabai/data/android")
+_ROOT = Path(os.environ.get("PHOENIX_HOME") or Path(__file__).resolve().parents[2])
+SHOT_DIR = _ROOT / "data" / "android"
 REMOTE_XML = "/sdcard/_adb_ui.xml"
 IME_ADB = "com.android.adbkeyboard/.AdbIME"
 IME_USER = "com.baidu.input_oppo/.ImeService"  # 存盘丢了时的兼底：本机原输入法
-IME_STATE = Path("/home/wxf/dabai/data/android/ime_before.txt")
+IME_STATE = SHOT_DIR / "ime_before.txt"
 # 非空 = 我们临时借用了 ADBKeyboard，里面存着该还回去的那个；atexit 据此兜底
 _IME_HELD = ""
 
@@ -771,7 +772,7 @@ def do_ctext(text: str) -> str:
     return f"{'✓' if ok else '✗'} 输入「{text}」{back}" + ("" if ok else f"（{out[:80]}）")
 
 
-SNAP = Path("/home/wxf/dabai/data/android/live.json")
+SNAP = SHOT_DIR / "live.json"
 _SIZE: tuple[int, int] = (0, 0)
 
 

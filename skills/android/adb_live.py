@@ -44,7 +44,7 @@ TAP_MS, TAP_PX = 350, 40
 SWIPE_PX, LONG_MS = 120, 600
 RECONNECT = (
     "import asyncio, importlib.util;"
-    "spec = importlib.util.spec_from_file_location('andsk', '/home/wxf/dabai/skills/android/skill.py');"
+    f"spec = importlib.util.spec_from_file_location('andsk', '{ROOT}/skills/android/skill.py');"
     "m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m);"
     "asyncio.run(m.execute('android', {'action': 'auto'}))"
 )

@@ -44,7 +44,7 @@
 ## 上手
 
 ```bash
-cd /home/wxf/dabai
+cd /path/to/phoenix
 A="venv/bin/python -m tools.x_ip.cli"
 
 $A verify                 # 校验签名/凭证/LLM 通道
@@ -67,7 +67,7 @@ $A stats                  # 状态概览
 实测会因 harness 的 DeepSeek 欠费 402 直接挂掉，而这是条确定性命令，不需要 LLM 在环）：
 
 ```cron
-0 9,20 * * * cd /home/wxf/dabai && venv/bin/python -m tools.x_ip.cli run --n 2 --count 3 >> tools/x_ip/cron.log 2>&1
+0 9,20 * * * cd /path/to/phoenix && venv/bin/python -m tools.x_ip.cli run --n 2 --count 3 >> tools/x_ip/cron.log 2>&1
 ```
 
 每天 09:00 和 20:00 各跑一次（对应 `persona.post_windows`），只生成草稿不发布。

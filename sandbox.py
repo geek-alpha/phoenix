@@ -12,7 +12,7 @@
     3) 参数层 prepare_args：文件类工具的路径参数一律解析到沙箱内，越界拒绝；
        缺 root/dir 的搜索类工具注入沙箱目录，避免默认落到服务器仓库根；
     4) 进程层 wrap_shell：shell_run 换成 bwrap 包装 —— 只读挂载系统目录、单独
-       挂载该用户沙箱、独立 /tmp、默认断网。实测沙箱内看不到 /home/wxf。
+       挂载该用户沙箱、独立 /tmp、默认断网。实测沙箱内看不到宿主主目录。
 
 为什么是 bwrap 而不是 chroot/容器：
     本机 /usr/bin/bwrap 已存在，非 root 用户即可用（用户命名空间），零安装成本；
@@ -293,9 +293,9 @@ def wrap_shell(actor: Actor, command: str, cwd: str = "") -> tuple:
     返回 (argv, cwd)：argv 为列表时走 exec 直传（不经过 shell 二次解析）。
 
     验证隔离时的坑：bind 目标用的是宿主绝对路径，bwrap 会为它自动创建父目录链——
-    所以沙箱内 `ls /home/wxf` 会看到一个**空的** dabai 目录，而不是真实内容。
-    判据不能用 `test -d /home/wxf`（恒为真），要用文件级：
-    `test -f /home/wxf/dabai/data/users.json`。
+    所以沙箱内 `ls ~` 会看到一个**空的**同名目录，而不是真实内容。
+    判据不能用 `test -d ~`（恒为真），要用文件级：
+    `test -f <仓库根>/data/users.json`。
 
     不用 --new-session：它只改会话归属，隔离不靠它，但会让超时后的进程难以回收。
     """

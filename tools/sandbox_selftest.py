@@ -4,7 +4,7 @@
   1) 角色与判重（auth_core）—— 第一个账号是管理员；同名变体必须被拒；
   2) 路径闸门（sandbox.resolve_path）—— 绝对越界 / ../ 越界 / 符号链接逃逸全拒；
   3) 工具策略（sandbox.tool_allowed）—— 管理员专属工具对普通用户不可见；
-  4) 进程隔离（bwrap）—— 沙箱内看不到 /home/wxf，且写出的文件落在自己目录；
+  4) 进程隔离（bwrap）—— 沙箱内看不到宿主主目录，且写出的文件落在自己目录；
   5) 端到端（harness.execute_tool）—— 身份经 contextvar 穿过工具线程池后仍生效，
      这一条是回归防线：run_in_executor 不传播 context，漏了 copy_context
      工具线程里就是「系统身份」，整套沙箱静默失效。
@@ -140,13 +140,13 @@ def main() -> int:
         argv, cwd = sandbox.wrap_shell(
             a_user,
             "echo hi > inside.txt; "
-            "test -f /home/wxf/dabai/data/users.json && echo LEAK || echo ISOLATED; "
-            "test -f /home/wxf/dabai/auth_core.py && echo LEAK2 || echo ISOLATED2",
+            f"test -f {ROOT}/data/users.json && echo LEAK || echo ISOLATED; "
+            f"test -f {ROOT}/auth_core.py && echo LEAK2 || echo ISOLATED2",
             str(a_user.sandbox))
         r = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=60)
         out = (r.stdout or "") + (r.stderr or "")
         check("沙箱内命令可执行", r.returncode == 0, f"rc={r.returncode} out={out.strip()[:120]}")
-        # 判据用文件级：test -d /home/wxf 恒为真（bwrap 为 bind 目标建了父目录链）
+        # 判据用文件级：test -d <仓库根> 恒为真（bwrap 为 bind 目标建了父目录链）
         check("沙箱内读不到服务器真实文件", "LEAK" not in out, out.strip()[:120])
         check("沙箱内写入落在自己目录", target.exists(), str(target))
         argv2, cwd2 = sandbox.wrap_shell(a_admin, "echo admin-ok", str(ROOT))
@@ -299,7 +299,7 @@ async def _e2e(a_user, a_admin) -> int:
     try:
         text, src = await h.execute_tool(
             "shell_run",
-            {"command": "test -f /home/wxf/dabai/data/users.json && echo LEAK || echo ISOLATED"})
+            {"command": f"test -f {ROOT}/data/users.json && echo LEAK || echo ISOLATED"})
         check("普通用户 shell_run 走沙箱",
               "[exit=0]\nISOLATED" in str(text), str(text)[:140])
         text2, _ = await h.execute_tool("linux_process", {"action": "list"})

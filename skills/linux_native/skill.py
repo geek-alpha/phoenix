@@ -173,7 +173,7 @@ async def _net(args: dict) -> str:
 
 async def _storage(args: dict) -> str:
     action = (args.get("action") or "overview").strip().lower()
-    path = args.get("path") or "/home/wxf"
+    path = args.get("path") or "~"
     if action == "overview":
         return sysadmin_impl.storage_overview()
     if action == "usage":

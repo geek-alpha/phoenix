@@ -113,7 +113,7 @@ sudo apt-get install -y python3-venv python3-dev ffmpeg ripgrep
 | 搜索引擎路径 | `skills/search/skill.py` | 去掉 `D:\AI\...` 硬编码 → 环境变量/技能目录探测；缺失时提示不再指向 Windows 路径 |
 | fq 翻墙 | `skills/search/fq_impl.py` | `cmd /c fq.cmd` → 平台分派；未配置时返回明确降级提示 |
 | ffmpeg 枚举 | `skills/media/video_lib.py` | POSIX 按可执行位判定、路径区分大小写：`/usr/bin/ffmpeg`、`/bin/ffmpeg` |
-| 工作区根目录 | `server.py` + `platform_compat.browse_roots` | 常用目录走 XDG/本地化名，根目录为主目录 + 挂载点：实测 `['/home/wxf', '/mnt', '/media', '/opt', '/srv']` |
+| 工作区根目录 | `server.py` + `platform_compat.browse_roots` | 常用目录走 XDG/本地化名，根目录为主目录 + 挂载点：实测 `['<主目录>', '/mnt', '/media', '/opt', '/srv']` |
 | 工具描述文案 | `skills/*/skill.json`、`references/*.md` | 去掉“Windows 命令 / dir / tasklist / 盘符”表述，避免模型在 Linux 上瞎用 Windows 命令 |
 
 回归：`python tools/linux_smoke_test.py` **14/14 PASS**（含技能层 `system_check`、`find_file`）；

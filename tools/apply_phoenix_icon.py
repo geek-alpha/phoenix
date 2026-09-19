@@ -129,7 +129,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--module", default="v2", choices=sorted(MODULES))
     ap.add_argument("--variant", default="v1")
-    ap.add_argument("--root", default="/home/wxf/dabai")
+    ap.add_argument("--root", default=".")
     ap.add_argument("--write", action="store_true")
     a = ap.parse_args()
     mod = load(a.module)

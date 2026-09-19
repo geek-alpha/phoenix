@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """资源闸门自测 —— 只调 resource_guard，绝不真启动任何 server（避免把 Pi 再烧一次）。"""
+import os
 import sys
 
-sys.path.insert(0, "/home/wxf/dabai/skills/mcp")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import mcp_client as mc  # noqa: E402
 
 ok = fail = 0

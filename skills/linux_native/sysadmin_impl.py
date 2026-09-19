@@ -743,9 +743,9 @@ def storage_overview() -> str:
     return "\n".join(lines)
 
 
-def storage_usage(path: str = "/home/wxf", depth: int = 1, limit: int = 12) -> str:
+def storage_usage(path: str = "~", depth: int = 1, limit: int = 12) -> str:
     """目录占用排行。"""
-    path = (path or "/home/wxf").strip()
+    path = os.path.expanduser((path or "~").strip())
     if not os.path.isdir(path):
         return f"✗ 目录不存在：{path}"
     try:
@@ -790,9 +790,9 @@ def _parse_du_kb(size: str) -> float:
         return 0.0
 
 
-def storage_bigfiles(path: str = "/home/wxf", min_mb: int = 50, limit: int = 15) -> str:
+def storage_bigfiles(path: str = "~", min_mb: int = 50, limit: int = 15) -> str:
     """找出大文件 —— 空间到底被什么吃了。"""
-    path = (path or "/home/wxf").strip()
+    path = os.path.expanduser((path or "~").strip())
     if not os.path.isdir(path):
         return f"✗ 目录不存在：{path}"
     try:

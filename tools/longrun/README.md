@@ -47,9 +47,10 @@ venv/bin/python tools/longrun/runner.py --dry-run
 LONGRUN_INTERVAL=60 venv/bin/python tools/longrun/runner.py --loop
 
 # 装成用户服务（开机自启 + 崩了自动起 + 卡死看门狗）
-ln -sf /home/wxf/dabai/deploy/systemd/dabai-longrun.service ~/.config/systemd/user/
-ln -sf /home/wxf/dabai/deploy/systemd/dabai-longrun-watchdog.service ~/.config/systemd/user/
-ln -sf /home/wxf/dabai/deploy/systemd/dabai-longrun-watchdog.timer ~/.config/systemd/user/
+# deploy/systemd/ 的单元示例属于部署实例配置，不在开源仓内；照下面三行引用的变量自己写一份即可
+ln -sf "$PWD/deploy/systemd/dabai-longrun.service" ~/.config/systemd/user/
+ln -sf "$PWD/deploy/systemd/dabai-longrun-watchdog.service" ~/.config/systemd/user/
+ln -sf "$PWD/deploy/systemd/dabai-longrun-watchdog.timer" ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now dabai-longrun.service dabai-longrun-watchdog.timer
 systemctl --user status dabai-longrun.service
@@ -62,8 +63,8 @@ touch data/longrun/STOP
 # 彻底关停（连看门狗一起，重启也不自启）
 systemctl --user disable --now dabai-longrun.service dabai-longrun-watchdog.timer
 # 恢复：disable 会把 symlink 删掉，所以先补回来再 enable
-ln -sf /home/wxf/dabai/deploy/systemd/dabai-longrun.service ~/.config/systemd/user/
-ln -sf /home/wxf/dabai/deploy/systemd/dabai-longrun-watchdog.timer ~/.config/systemd/user/
+ln -sf "$PWD/deploy/systemd/dabai-longrun.service" ~/.config/systemd/user/
+ln -sf "$PWD/deploy/systemd/dabai-longrun-watchdog.timer" ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now dabai-longrun.service dabai-longrun-watchdog.timer
 ```

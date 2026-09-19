@@ -20,18 +20,20 @@ v1/v2 结论（都已实测）：
   4e 4a 流式
 另附 5：三条 assistant 中只有中间一条带（进一步确认「混合」而非「位置」）
 
-用法：/home/wxf/dabai/venv/bin/python tools/reasoning_echo_400_probe.py
+用法：venv/bin/python tools/reasoning_echo_400_probe.py
 """
 import asyncio
 import json
+import os
 import sys
 
-sys.path.insert(0, "/home/wxf/dabai")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from openai import AsyncOpenAI  # noqa: E402
 
-CFG = json.load(open("/home/wxf/dabai/settings.json", encoding="utf-8"))
+CFG = json.load(open(os.path.join(_ROOT, "settings.json"), encoding="utf-8"))
 MODEL = CFG.get("model")
 THINKING = {"reasoning_effort": "high", "thinking_budget": 2000}
 

@@ -254,7 +254,7 @@
             },
             "path": {
               "type": "string",
-              "description": "usage/bigfiles 的目标目录，默认 /home/wxf。"
+              "description": "usage/bigfiles 的目标目录，默认用户主目录（~）。"
             },
             "depth": {
               "type": "integer",

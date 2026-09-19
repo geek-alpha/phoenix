@@ -198,7 +198,7 @@ do_l2() {
     echo "  ns 内可见进程数     = $(ls /proc | grep -c "^[0-9]*$")  ← 宿主进程被隐藏"
     echo "  ns 内身份           = $(id -un) uid=$(id -u)  ← 映射后的 root，宿主上仍是普通用户"
     mount -t tmpfs tmpfs /mnt 2>/dev/null && echo "  tmpfs 挂载          = 成功（非特权也能挂）" || echo "  tmpfs 挂载          = 失败"
-    echo "  宿主 / 是否可见      = $([ -e /home/wxf/dabai ] && echo 是 || echo 否)（文件系统共享，未做 pivot_root）"
+    echo "  宿主主目录是否可见 = $([ -e "$HOME" ] && echo 是 || echo 否)（文件系统共享，未做 pivot_root）"
     echo "  宿主 PID 1 是否可见  = $([ -e /proc/1/cmdline ] && echo 是 || echo 否)"
   ' 2>&1 | grep -v "^$"
 

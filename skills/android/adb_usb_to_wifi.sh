@@ -4,7 +4,8 @@
 # 用户只要插一次线，之后又是无线。
 set -uo pipefail
 
-DATA=/home/wxf/dabai/data/android
+ROOT="${PHOENIX_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+DATA="$ROOT/data/android"
 LOG="$DATA/keepalive.log"
 HOSTS="$DATA/wifi_host.txt"
 ADB="$(command -v adb)"

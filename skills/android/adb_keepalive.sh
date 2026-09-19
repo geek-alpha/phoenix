@@ -3,11 +3,12 @@
 # 由 adb-keepalive.timer 每 60 秒驱动；掉线时按 缓存IP → 网段扫描 两级自愈。
 set -uo pipefail
 
-DATA=/home/wxf/dabai/data/android
+ROOT="${PHOENIX_HOME:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+DATA="$ROOT/data/android"
 LOG="$DATA/keepalive.log"
 FAILS="$DATA/keepalive.fails"
 NEED="$DATA/NEED_ATTENTION"
-PY=/home/wxf/dabai/venv/bin/python
+PY="$ROOT/venv/bin/python"
 ADB="$(command -v adb)"
 NOTIFY_MAX=3
 
@@ -28,10 +29,10 @@ serial="$(online)"
 
 if [ -z "$serial" ]; then
     # 掉线：交给技能的自愈逻辑（缓存 IP → 并发扫网段），失败也不抛错
-    timeout 90 "$PY" - <<'EOF' >/dev/null 2>&1
+    timeout 90 "$PY" - <<EOF >/dev/null 2>&1
 import asyncio, importlib.util
 spec = importlib.util.spec_from_file_location(
-    "andsk", "/home/wxf/dabai/skills/android/skill.py")
+    "andsk", "$ROOT/skills/android/skill.py")
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 print(asyncio.run(m.execute("android", {"action": "auto"})))
@@ -44,8 +45,8 @@ if [ -n "$serial" ]; then
     echo 0 > "$FAILS"
     rm -f "$NEED"
     # 手机在线时确保实时层在跑（触摸流 + UI 快照缓存）
-    if ! "$PY" /home/wxf/dabai/skills/android/adb_live.py status 2>/dev/null | grep -q 运行中; then
-        nohup "$PY" /home/wxf/dabai/skills/android/adb_live.py start >/dev/null 2>&1 &
+    if ! "$PY" "$ROOT/skills/android/adb_live.py" status 2>/dev/null | grep -q 运行中; then
+        nohup "$PY" "$ROOT/skills/android/adb_live.py" start >/dev/null 2>&1 &
     fi
     exit 0
 fi

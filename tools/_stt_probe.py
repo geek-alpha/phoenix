@@ -4,11 +4,12 @@ import sys
 import time
 import hashlib
 
-sys.path.insert(0, "/home/wxf/dabai")
-os.chdir("/home/wxf/dabai")
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _ROOT)
+os.chdir(_ROOT)
 import server  # noqa: E402
 
-SRC = "/home/wxf/dabai/web/_silero_speech.mp3"
+SRC = os.path.join(_ROOT, "web", "_silero_speech.mp3")
 
 
 def md5(p):

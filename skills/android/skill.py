@@ -13,7 +13,8 @@ import time
 from pathlib import Path
 
 ADB = shutil.which("adb") or "adb"
-_SCREEN_DIR = Path("/home/wxf/dabai/data/android")
+_ROOT = Path(os.environ.get("PHOENIX_HOME") or Path(__file__).resolve().parents[2])
+_SCREEN_DIR = _ROOT / "data" / "android"
 _SCREEN_DIR.mkdir(parents=True, exist_ok=True)
 
 

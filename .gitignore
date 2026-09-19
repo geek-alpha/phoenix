@@ -245,3 +245,23 @@ godot-dabai/.project_build/
 .pytest_libs/
 # mcp fs server 的运行时 pid 文件，每次启动都会生成
 skills/mcp/run/
+
+# ── 开源版裁剪（2026-09-19）──────────────────────────────────────────────
+# 下面这些是「某个部署实例」的东西，不是「产品基因组」。
+# 注意 deploy/release/ 不在此列：那是自我更新系统（有 tests/test_release_update.py
+# 29 个用例覆盖），属于产品能力，随包分发。
+#
+# 运维基础设施：systemd 单元 / 密钥同步 / nginx / 推送守卫。
+# 含本机内网地址、账号名与发布流程，换台机器就没意义。
+/deploy/systemd/
+/deploy/secrets/
+/deploy/gitguard/
+/deploy/nginx-dabai.conf
+# 私人商业工具：官网生成器、对外演示 API、邮件验证、联邦巡检
+/tools/bp_site_gen.py
+/tools/bp_demo_api.py
+/email_verify.py
+/peer_watch.py
+# MCP server 配置是运行时产物：mcp_connect 成功后会写回这里，属于本机私有。
+# 示例见 skills/mcp/servers.example.json。
+/skills/mcp/servers.json

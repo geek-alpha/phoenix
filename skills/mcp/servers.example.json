@@ -1,21 +1,15 @@
 {
-  "_comment": "MCP server 配置：name -> {url, headers} 或 {command, args, env, cwd}。远程 server 写 url（Streamable HTTP），本地 server 写 command；mcp_connect 传过配置会自动写这里；下划线开头的键只是注释，不算 server。",
+  "_comment": "MCP server 配置：name -> {url, headers} 或 {command, args, env, cwd}。远程 server 写 url（Streamable HTTP），本地 server 写 command；mcp_connect 传过配置会自动写这里；下划线开头的键只是注释，不算 server。用法：复制成同目录 servers.json 再改（servers.json 是本机运行时文件，不入仓）。",
   "fs": {
     "command": "npx",
     "args": [
       "-y",
       "@modelcontextprotocol/server-filesystem",
-      "/home/wxf/dabai/skills/code_ops",
-      "/home/wxf/dabai"
+      ".",
+      "skills/code_ops"
     ]
   },
-  "github": {
-    "command": "npx",
-    "args": [
-      "-y",
-      "@modelcontextprotocol/server-github"
-    ]
-  },
+  "_fs_note": "args 末尾的目录是允许访问的范围，按需改成你自己的路径；'.' 由 npx 按当前工作目录解析。",
   "_url_example": "远程 server 这样写：{\"url\": \"https://host/mcp\", \"headers\": {\"Authorization\": \"Bearer xxx\"}}；不带 headers 就只写 url。",
   "_removed_playwright": "已撤：浏览器内核在 1GB 的 Pi 3 上会烧到硬关机（实测空载 63°C，chromium 一开直冲 85°C）。读网页用 read_web。真要临时用就现场传 command/args + allow_heavy=true，用完立刻 mcp_disconnect。"
 }

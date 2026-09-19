@@ -4,7 +4,8 @@
 # 心跳由 runner.py 每轮开始时 touch（长活期间每 60s 刷一次），卡住的循环不写心跳，于是被抓出来。
 set -u
 
-RUN=${LONGRUN_RUN_DIR:-/home/wxf/dabai/data/longrun}
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+RUN=${LONGRUN_RUN_DIR:-$ROOT/data/longrun}
 HB="$RUN/heartbeat"
 MAX_AGE=${LONGRUN_MAX_AGE:-1800}        # 30 分钟没心跳 = 卡死
 UNIT=${LONGRUN_UNIT:-dabai-longrun.service}

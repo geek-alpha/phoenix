@@ -51,7 +51,7 @@ def test_tool_name_classification(tool_name, expected):
 
 @pytest.mark.parametrize("cmd", [
     "rm -rf /tmp/x",
-    "cd /home/wxf/dabai && rm -f a.bak",
+    "cd /srv/app && rm -f a.bak",
     "sudo rm /etc/x",
     "rmdir /tmp/empty",
     "unlink /tmp/a",

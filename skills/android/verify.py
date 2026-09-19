@@ -19,11 +19,13 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import time
 from pathlib import Path
 
-STATE = Path("/home/wxf/dabai/data/android/verify_state.json")
+_ROOT = Path(os.environ.get("PHOENIX_HOME") or Path(__file__).resolve().parents[2])
+STATE = _ROOT / "data" / "android" / "verify_state.json"
 _BOX_RE = re.compile(r"^\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)\s*[, ]\s*(\d+)\s*$")
 
 

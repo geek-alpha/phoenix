@@ -1,7 +1,7 @@
 {
   "agent": {
     "name": "dabai-web",
-    "work_dir": "/home/wxf/dabai",
+    "work_dir": "",
     "sync_timeout_sec": 120,
     "max_reply_chars": 3800,
     "tool_progress_interval_sec": 60,
