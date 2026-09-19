@@ -68,7 +68,7 @@ DEFAULTS = {
 FLOOR_GLOBS: Tuple[str, ...] = (
     "data", "data/**",
     "venv/**", ".venv/**", "models/**", "backgrounds/**", "node_modules/**",
-    "*.pem", "*.key", "*.crt", "*.lock", "*.env",
+    "**/*.pem", "**/*.key", "**/*.crt", "*.lock", "*.env",
     ".git/**",
     "conviction.json", "long_horizon.json", "gene_stats.json",
     "reward_memory.json", "rlhf_model.json", "rl_bandit.json",

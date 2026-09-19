@@ -52,6 +52,7 @@ except ImportError:
     email_verify = None  # type: ignore[assignment]
 import music_lib
 import peer_mesh
+import tls_cert
 import turn_quota
 import video_fav_lib
 import video_history_lib
@@ -567,7 +568,7 @@ _PUBLIC_HEADERS = ("cf-connecting-ip", "cf-ray")
 _AUTH_EXEMPT = {
     "/login", "/api/auth/login", "/api/auth/register", "/api/auth/me",
     "/api/auth/status", "/api/auth/email/send",
-    "/favicon.ico", "/manifest.webmanifest", "/sw.js", "/setup", "/dabai-ca.crt",
+    "/favicon.ico", "/manifest.webmanifest", "/sw.js", "/setup", "/phoenix-ca.crt",
     # App 启动就要查它，不能等登录
     "/api/frontend-build",
 }
@@ -1803,15 +1804,24 @@ async def setup_page():
     return resp
 
 
-@app.get("/dabai-ca.crt")
-async def dabai_ca_cert():
-    """下发根证书。iOS 认 application/x-x509-ca-cert，Android 认 .crt 后缀 + 附件下载。"""
-    path = WEB_DIR / "dabai-ca.crt"
+@app.get("/phoenix-ca.crt")
+async def phoenix_ca_cert():
+    """下发本机自签的根证书。iOS 认 application/x-x509-ca-cert，Android 认 .crt 后缀 + 附件下载。
+
+    证书不进发行包（包里带固定 CA，等于让每个用户去信任发布方的根 CA），而是本机
+    首次启动时签一张，所以这里可能撞上「还没生成」—— 顺手补一次再下发。
+    """
+    path = BASE_DIR / "phoenix-ca.crt"
     if not path.is_file():
-        return JSONResponse({"error": "根证书缺失：web/dabai-ca.crt"}, status_code=404)
+        try:
+            tls_cert.ensure_certs(BASE_DIR, quiet=True)
+        except Exception as e:
+            logger.warning(f"根证书缺失且现场生成失败：{e}")
+    if not path.is_file():
+        return JSONResponse({"error": "根证书缺失：重启服务即可自动生成"}, status_code=404)
     resp = FileResponse(str(path), media_type="application/x-x509-ca-cert",
-                        filename="dabai-ca.crt")
-    resp.headers["Content-Disposition"] = 'attachment; filename="dabai-ca.crt"'
+                        filename="phoenix-ca.crt")
+    resp.headers["Content-Disposition"] = 'attachment; filename="phoenix-ca.crt"'
     resp.headers["Cache-Control"] = "no-cache"
     return resp
 
@@ -7802,7 +7812,8 @@ if __name__ == "__main__":
     import ssl
     ip = get_lan_ip()
 
-    # 检查/生成自签名证书 (HTTPS 解锁手机陀螺仪/VR模式等传感器 API)
+    # 自签名证书：HTTPS 才能解锁手机陀螺仪/传感器 API 与离线缓存。
+    # 证书不进发行包，本机首次启动时现场签一张（见 tls_cert.py）。
     cert_dir = Path(__file__).parent
     cert_file = cert_dir / "cert.pem"
     key_file = cert_dir / "key.pem"
@@ -7821,6 +7832,11 @@ if __name__ == "__main__":
     if _http_only:
         use_https = False
     else:
+        if not (cert_file.exists() and key_file.exists()):
+            try:
+                tls_cert.ensure_certs(cert_dir, extra_ips=[ip])
+            except Exception as e:
+                print(f"  ⚠ 自签证书生成失败（将以 HTTP 启动）：{e}")
         use_https = cert_file.exists() and key_file.exists()
 
     ipv6 = get_global_ipv6()

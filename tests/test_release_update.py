@@ -180,6 +180,21 @@ def test_packed_assets_pass_floor():
         assert update.is_forbidden(rel), rel
 
 
+def test_nested_credentials_are_excluded():
+    """凭证 glob 必须递归 —— 单层的 `*.crt` 只盖仓库根，嵌套的会漏进发行包。
+
+    实测 web/dabai-ca.crt（Basic Constraints: CA:TRUE）被判成 code 打进包里：
+    装它的每个用户都把发布方的根 CA 拉进了自己的信任库。单层 glob 是根因，
+    所以这里按「任意深度」断言，不只测那一个已知文件。
+    """
+    for rel in ("cert.pem", "key.pem", "web/phoenix-ca.crt", "web/phoenix-ca.key",
+                "certs/ca-key.pem", "a/b/c.pem", "web/deep/nested/x.crt",
+                "deploy/tls/rootCA.key"):
+        assert paths.classify(rel) == paths.LOCAL, rel
+        assert paths.floor_violation(rel), rel
+        assert update.is_forbidden(rel), rel
+
+
 def test_validators_agree():
     """update.py 自带校验器与 manifest.py 的判定必须一致。
 

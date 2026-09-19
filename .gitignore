@@ -116,6 +116,9 @@ web/anim/pose/
 *.pem
 key.pem
 cert.pem
+# 本机自签的根证书与 CA 私钥：tls_cert.py 现场生成，换机器重签一次即可
+/phoenix-ca.crt
+/phoenix-ca.key
 # mixamo 登录态 Cookie（凭证，勿提交）
 data/mixamo_cookies.json
 # 任务断点续跑状态（运行时产物）

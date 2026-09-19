@@ -86,6 +86,21 @@ python3 deploy/release/build_release.py --list
 #     character_cards.json ← agent.py, server.py, tools/role_card_isolation_probe.py（3 处引用…）
 ```
 
+### TLS 证书（不随包发布，首次启动现场自签）
+
+包里**不带任何证书**——带一张固定的 CA，等于让每个装它的用户去信任发布方的根 CA（那张 CA 的私钥能签任意域名）。改成每台机器自己签：首次启动时 `tls_cert.py` 生成 `phoenix-ca.crt`（供手机下载安装，走 `/phoenix-ca.crt`）和服务器证书 `cert.pem` / `key.pem`。四个文件都留在本机，不入仓、不进包，私钥权限 600。
+
+证书里写的是 IP，换网段时只重签服务器证书、CA 不动，手机已装好的根证书继续有效：
+
+```bash
+python3 tls_cert.py              # 缺什么补什么，IP 变了自动重签服务器证书
+python3 tls_cert.py --print-san  # 只看这次会覆盖哪些地址
+python3 tls_cert.py --force      # 整套重签（手机要重装一次根证书）
+```
+
+优先用 `cryptography` 模块，没装则退回 `openssl` 命令行。
+
+
 ### 纯净环境下已知为红的 4 个用例（不是代码缺陷）
 
 | 用例 | 原因 |

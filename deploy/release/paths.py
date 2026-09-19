@@ -95,9 +95,11 @@ LOCAL_GLOBS: tuple[str, ...] = (
     "nul",
     "NUL",
     # 凭证：证书私钥、联邦共享密钥、SMTP、用户库
-    "*.pem",
-    "*.key",
-    "*.crt",
+    # `**/` 不能省：单层的 `*.crt` 只匹配仓库根，web/dabai-ca.crt 就被判成 code
+    # 打进了发行包 —— 一张 CA 证书随包发给所有人，等于让每个用户信任发布方的根 CA。
+    "**/*.pem",
+    "**/*.key",
+    "**/*.crt",
     "deploy/tls/**",
     "deploy/secrets/*.json",
     "deploy/secrets/*.env",
@@ -148,9 +150,9 @@ FLOOR_GLOBS: tuple[str, ...] = (
     "models/**",
     "backgrounds/**",
     "node_modules/**",
-    "*.pem",
-    "*.key",
-    "*.crt",
+    "**/*.pem",
+    "**/*.key",
+    "**/*.crt",
     "*.lock",
     "*.env",
     ".git/**",
