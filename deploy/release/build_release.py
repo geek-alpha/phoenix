@@ -176,6 +176,80 @@ def local_import_gaps(root: Path, pairs: List[Tuple[str, Path]]) -> Tuple[List[s
     return sorted(set(gaps)), sorted(set(optional))
 
 
+# 按文件名形态识别数据文件。带扩展名是必要条件：只有像文件名的字面量才可能是路径。
+_DATA_SUFFIX = (
+    ".json", ".jsonl", ".db", ".db-wal", ".db-shm", ".sqlite", ".sqlite3",
+    ".csv", ".tsv", ".txt", ".yaml", ".yml", ".toml", ".ini", ".env",
+    ".vrm", ".glb", ".gltf", ".bin", ".pem", ".key", ".crt", ".md",
+)
+_OPENERS = {"open", "Path", "read_text", "read_bytes", "load", "loads"}
+
+
+def _data_refs(tree: ast.AST) -> set:
+    """抓「路径拼接」与「打开文件」实参里的文件名字面量。
+
+    只认 ROOT / "x.json"（BinOp/Div）和 open("x.json") 这类实参，不扫裸字符串
+    常量：update.py 的保护清单里也写着 "character_cards.json"，那是数据不是引用，
+    扫进去全是误报。
+    """
+    names: set = set()
+    for node in ast.walk(tree):
+        cand = ""
+        if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+            right = node.right
+            if isinstance(right, ast.Constant) and isinstance(right.value, str):
+                cand = right.value
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in _OPENERS and node.args:
+                first = node.args[0]
+                if isinstance(first, ast.Constant) and isinstance(first.value, str):
+                    cand = first.value
+        if cand and not any(ch in cand for ch in "*?$") and cand.lower().endswith(_DATA_SUFFIX):
+            names.add(cand)
+    return names
+
+
+def data_file_gaps(root: Path, pairs: List[Tuple[str, Path]]) -> Tuple[List[str], int]:
+    """代码按路径读、但包里不会有的数据文件。返回 (tools/tests 直接引用的明细, 其余个数)。
+
+    与 import 缺口分开：数据文件缺失不让服务起不来（读它的代码自己会兜默认值），
+    只让个别功能或探针不可用 —— 所以是软提醒，不拦打包。典型：
+    tools/role_card_isolation_probe.py 读 character_cards.json，那文件按 paths.py
+    是本机私有、不进包，装上跑探针才 FileNotFoundError。
+    """
+    packaged = {rel for rel, _ in pairs}
+    packaged_names = {rel.rsplit("/", 1)[-1] for rel in packaged}
+    hits: Dict[str, List[str]] = {}
+    for rel, abs_path in pairs:
+        if not rel.endswith(".py"):
+            continue
+        try:
+            tree = ast.parse(abs_path.read_text(encoding="utf-8", errors="ignore"))
+        except (OSError, SyntaxError):
+            continue
+        for name in _data_refs(tree):
+            if name.startswith("/"):  # 仓外绝对路径（如 /etc/dabai/secrets.env）不在包的取材面
+                continue
+            base = name.rsplit("/", 1)[-1]
+            if name in packaged or base in packaged_names:
+                continue
+            # 私有/经历档按 paths.py 本就不该进包；其余按「磁盘上有、仓里没有」判未入仓
+            if P.classify(name) != P.CODE or (root / name).is_file():
+                hits.setdefault(name, []).append(rel)
+    dev: List[str] = []
+    rest = 0
+    for name in sorted(hits):
+        users = sorted(set(hits[name]))
+        # 只细列 tools/tests 直接引用的：那是开发者 clone 后要跑的入口，缺数据当场炸。
+        # 主程序引用的（settings.json 等）自己就兜默认值，全列出来只是刷屏。
+        if not any(u.startswith(("tools/", "tests/")) for u in users):
+            rest += 1
+            continue
+        shown = ", ".join(users[:3]) + ("…" if len(users) > 3 else "")
+        dev.append(f"{name} ← {shown}（{len(users)} 处引用，需自建或运行时生成）")
+    return dev, rest
+
+
 _TS_REF = re.compile(r"""(?:from|import)\s*\(?\s*["'](\.[^"']*)["']""")
 # 站点绝对路径的字符串字面量。刻意不按 src=/href= 属性抓：importmap 是
 # {"three": "/static/vendor/three/build/three.module.js"}，service worker 是
@@ -336,6 +410,7 @@ def main() -> int:
 
     front_hard, front_soft = frontend_gap(root, pairs)
     import_gaps, optional_gaps = local_import_gaps(root, pairs)
+    data_gaps, data_rest = data_file_gaps(root, pairs)
     gaps = import_gaps + front_hard
     if gaps:
         print(f"✘ 有 {len(gaps)} 处引用指向未入仓的本地文件（装上会起不来）：")
@@ -356,6 +431,13 @@ def main() -> int:
         print(f"! {len(optional_gaps)} 处可选依赖不在包内（缺失时自动降级）：")
         for g in optional_gaps[:10]:
             print("   ", g)
+
+    if data_gaps:
+        print(f"! {len(data_gaps)} 个数据文件被 tools/tests 直接引用、但包里没有（跑探针会 FileNotFoundError）：")
+        for g in data_gaps[:12]:
+            print("   ", g)
+        if data_rest:
+            print(f"  另有 {data_rest} 个私有数据文件被主程序引用，按设计不进包、服务自行兜默认值")
 
     if args.list:
         print(f"版本 {version}：{len(pairs)} 个文件会进包")

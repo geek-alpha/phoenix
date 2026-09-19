@@ -386,6 +386,64 @@ def test_real_repo_has_no_import_gaps():
     assert not gaps, "有模块被 import 但没入仓：\n" + "\n".join(gaps)
 
 
+# ── 数据文件依赖：包内代码读的数据文件必须在包里，或已声明为私有 ──────────
+def test_data_file_dependency_is_flagged(tmp_path):
+    """tools 里读的私有数据文件不在包内时必须报出来。
+
+    这正是 role_card_isolation_probe.py 那次：它读 character_cards.json，那文件
+    按 paths.py 是本机私有、不进包 —— 打包器原先只看 .py 之间的 import，装上跑
+    探针才 FileNotFoundError。
+    """
+    (tmp_path / "tools").mkdir()
+    (tmp_path / "tools" / "probe.py").write_text(
+        "import json\n"
+        "from pathlib import Path\n"
+        "ROOT = Path(__file__).parent.parent\n"
+        'cards = json.loads((ROOT / "character_cards.json").read_text("utf-8"))\n',
+        encoding="utf-8")
+    pairs = [("tools/probe.py", tmp_path / "tools" / "probe.py")]
+    dev, rest = build_mod.data_file_gaps(tmp_path, pairs)
+    assert dev, "私有数据依赖竟然没报出来"
+    assert "character_cards.json" in dev[0]
+    assert rest == 0
+
+
+def test_data_filename_in_a_list_is_not_a_reference(tmp_path):
+    """保护清单里的文件名字符串不是「引用」，不能误报。
+
+    update.py / paths.py 的保护清单里就写着 "character_cards.json" —— 那是要保住的
+    数据，不是要读的路径。按裸字符串扫会把这些全扫成依赖。
+    """
+    (tmp_path / "update.py").write_text(
+        'PROTECTED = ("cards.json", "character_cards.json")\n', encoding="utf-8")
+    pairs = [("update.py", tmp_path / "update.py")]
+    assert build_mod.data_file_gaps(tmp_path, pairs) == ([], 0)
+
+
+def test_data_file_inside_package_is_not_flagged(tmp_path):
+    """数据文件进了包就不算依赖缺口。"""
+    (tmp_path / "probe.py").write_text(
+        "from pathlib import Path\n"
+        "ROOT = Path(__file__).parent\n"
+        'data = (ROOT / "seed.json").read_text("utf-8")\n',
+        encoding="utf-8")
+    (tmp_path / "seed.json").write_text("{}\n", encoding="utf-8")
+    pairs = [("probe.py", tmp_path / "probe.py"), ("seed.json", tmp_path / "seed.json")]
+    assert build_mod.data_file_gaps(tmp_path, pairs) == ([], 0)
+
+
+def test_real_repo_data_deps_are_all_declared_private():
+    """真仓库里报出来的数据依赖，必须都是 paths.py 已声明为私有/经历档的。
+
+    没声明的数据文件依赖 = 新引入的洞：哪天加个 tools 读仓外文件、却没进 paths.py
+    的清单，这条会红。这是这份检查不退化成一个摆设的保证。
+    """
+    pairs, _missing, _excluded = build_mod.collect(REPO)
+    dev, _rest = build_mod.data_file_gaps(REPO, pairs)
+    undeclared = [g for g in dev if paths.classify(g.split(" ←")[0]) == paths.CODE]
+    assert not undeclared, "有数据文件依赖没在 paths.py 声明：\n" + "\n".join(undeclared)
+
+
 # ── 前端引用完整性：包内前端引的本地资源必须在包里 ──────────────────────
 def test_frontend_gap_is_detected(tmp_path):
     """TS import / HTML 与 manifest 引用指向仓外文件时必须报出来。
