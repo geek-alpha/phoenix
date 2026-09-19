@@ -7344,7 +7344,13 @@ def _video_lib():
     _p = str(Path(__file__).parent / "skills" / "media")
     if _p not in sys.path:
         sys.path.insert(0, _p)
-    import video_lib
+    try:
+        import video_lib
+    except Exception as _e:
+        # 典型是缺 yt-dlp 之类的依赖。转成 503 + 修复命令，别让前端只看到一个 500。
+        raise HTTPException(
+            status_code=503,
+            detail=f"视频技能库加载失败：{_e}；缺依赖请运行 phoenix.bat --setup") from _e
     try:
         mtime = (Path(_p) / "video_lib.py").stat().st_mtime
     except OSError:
@@ -7361,9 +7367,15 @@ def _video_lib():
 
 @app.get("/api/video_hub/api/platforms")
 async def vh_platforms():
-    return {"platforms": _video_lib().PLATFORMS, "default": "all",
-            "sort_modes": [{"id": "relevance", "name": "相关性最高"},
-                           {"id": "hot", "name": "最热门"}]}
+    lib = _video_lib()
+    out = {"platforms": lib.PLATFORMS, "default": "all",
+           "sort_modes": [{"id": "relevance", "name": "相关性最高"},
+                          {"id": "hot", "name": "最热门"}]}
+    # 缺 yt-dlp 时前面仍能用（B 站官方 API / AcFun REST 不走它），但 YouTube 与自定义源会失效，
+    # 把原因抬到接口层，前端才能提示用户去跑 --setup，而不是看着列表空着。
+    if getattr(lib, "yt_dlp", None) is None:
+        out["warning"] = getattr(lib, "YTDLP_MISSING_HINT", "缺少 yt-dlp")
+    return out
 
 
 @app.get("/api/video_hub/api/search")
@@ -7826,6 +7838,49 @@ async def harness_admin_page():
     return resp
 
 
+def _port_usable(host: str, port: int):
+    """试绑端口：可用返回 None，否则返回 OSError。
+
+    为什么要赶在 uvicorn 之前自己探一次：非管理员身份下 Windows 常因「端口落在
+    系统保留段」报 WinError 10013，uvicorn 内部直接 sys.exit，用户看到的是黑窗
+    停住、没有可用信息（表现成「必须用管理员运行」）。预检能把原因与修复命令
+    讲清楚。Windows 上 SO_REUSEADDR 会允许绑到已占端口，所以故意不设它。
+    """
+    fam = socket.AF_INET6 if ":" in host else socket.AF_INET
+    s = socket.socket(fam, socket.SOCK_STREAM)
+    try:
+        if fam == socket.AF_INET6:
+            try:
+                s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            except OSError:
+                pass
+        s.bind((host, port))
+        return None
+    except OSError as e:
+        return e
+    finally:
+        s.close()
+
+
+def _port_failure_hint(err: OSError, port: int) -> str:
+    """把 bind 失败翻译成能直接照抄的修复命令。"""
+    import errno as _errno
+    winerr = getattr(err, "winerror", None)
+    if winerr == 10013:
+        return (f"  ⚠ 端口 {port} 被拒绝访问（WinError 10013）\n"
+                "    常见原因：Hyper-V / WSL2 / Docker Desktop 保留了该端口段，\n"
+                "    非管理员进程绑不上（管理员能绑，所以看着像「必须管理员运行」）。\n"
+                "    修复（管理员 PowerShell 任选其一）：\n"
+                "      net stop winnat && net start winnat\n"
+                f"      netsh int ipv4 add excludedportrange protocol=tcp startport={port} numberofports=1\n"
+                "    查当前保留段：netsh interface ipv4 show excludedportrange protocol=tcp")
+    if winerr == 10048 or getattr(err, "errno", None) == _errno.EADDRINUSE:
+        return (f"  ⚠ 端口 {port} 已被占用\n"
+                f"    查占用者：netstat -ano | findstr :{port}")
+    return f"  ⚠ 端口 {port} 无法绑定：{err}"
+
+
+
 if __name__ == "__main__":
     # Windows 控制台默认 GBK，emoji 会导致 UnicodeEncodeError 崩溃，强制 utf-8 容错
     try:
@@ -7866,21 +7921,43 @@ if __name__ == "__main__":
     ipv6 = get_global_ipv6()
     has_ipv6 = bool(ipv6)  # 仅在有真实全局 IPv6 地址时才启用双栈
 
+    # host="::" 启用 IPv6 双栈监听（IPv4 + IPv6 均可访问）
+    host = "::" if has_ipv6 else "0.0.0.0"
+
+    # 监听端口预检：绑不上时给出原因 + 自动回退，不让用户对着黑窗发呆。
+    # nginx 前置 TLS 终结模式回源 8001，对外仍由 nginx 提供 8000 HTTPS。
+    _serve_port = 8001 if _http_only else SERVER_PORT
+    _perr = _port_usable(host, _serve_port)
+    if _perr is not None:
+        print(_port_failure_hint(_perr, _serve_port))
+        # 回退范围要盖得住 Hyper-V/WSL2 保留段：那不是单个端口，常见是连续几十个
+        # （如 7981-8080），只试 +1..+10 会直接放弃并 sys.exit，用户看到的就是
+        # 「非管理员时黑窗停住、必须用管理员运行」。
+        for _alt in range(_serve_port + 1, _serve_port + 101):
+            if _port_usable(host, _alt) is None:
+                print(f"  → 本次自动改用端口 {_alt}")
+                print(f"    访问地址已变：{'https' if use_https else 'http'}://127.0.0.1:{_alt}")
+                _serve_port = _alt
+                break
+        else:
+            print("  [X] 候选端口全部不可用，请先释放端口再启动")
+            sys.exit(1)
+
     print("\n" + "=" * 50)
     print("   3D 虚拟 AI 角色陪聊 服务器已启动")
     print("=" * 50)
     if use_https:
-        print(f"  本机访问 : https://127.0.0.1:{SERVER_PORT}")
-        print(f"  局域网   : https://{ip}:{SERVER_PORT}")
+        print(f"  本机访问 : https://127.0.0.1:{_serve_port}")
+        print(f"  局域网   : https://{ip}:{_serve_port}")
         if has_ipv6:
-            print(f"  IPv6    : https://[{ipv6}]:{SERVER_PORT}")
+            print(f"  IPv6    : https://[{ipv6}]:{_serve_port}")
         print(f"  ⚠ 手机首次访问会提示证书不安全 → 点「高级」→「继续访问」")
         print(f"  ✅ HTTPS 模式：陀螺仪/VR模式传感器 API 已解锁")
     else:
-        print(f"  本机访问 : http://127.0.0.1:{SERVER_PORT}")
-        print(f"  局域网   : http://{ip}:{SERVER_PORT}")
+        print(f"  本机访问 : http://127.0.0.1:{_serve_port}")
+        print(f"  局域网   : http://{ip}:{_serve_port}")
         if has_ipv6:
-            print(f"  IPv6    : http://[{ipv6}]:{SERVER_PORT}")
+            print(f"  IPv6    : http://[{ipv6}]:{_serve_port}")
     print(f"  手机请连接同一 Wi-Fi 后访问上述局域网地址")
     if has_ipv6:
         print(f"  ✅ IPv6 双栈监听已启用（IPv4 + IPv6 均可访问）")
@@ -7943,9 +8020,6 @@ if __name__ == "__main__":
     except Exception:
         pass  # 非 Windows 或版本差异，忽略
 
-    # host="::" 启用 IPv6 双栈监听（IPv4 + IPv6 均可访问）
-    host = "::" if has_ipv6 else "0.0.0.0"
-
     # 热更新守护：核心 Python 变化自动重启；技能/插件变化自动热重载
     # （settings.json 的 harness.hot_reload=false 可关闭）
     def _hot_reload_ext_callback():
@@ -7987,9 +8061,7 @@ if __name__ == "__main__":
         pass
 
     if use_https:
-        uvicorn.run(app, host=host, port=SERVER_PORT, log_level="warning", **_fast,
+        uvicorn.run(app, host=host, port=_serve_port, log_level="warning", **_fast,
                     ssl_certfile=str(cert_file), ssl_keyfile=str(key_file))
     else:
-        # nginx 前置 TLS 终结模式：回源端口 8001，对外仍由 nginx 提供 8000 HTTPS
-        _serve_port = 8001 if _http_only else SERVER_PORT
         uvicorn.run(app, host=host, port=_serve_port, log_level="warning", **_fast)

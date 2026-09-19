@@ -34,7 +34,7 @@ if [ ${#PASS_ARGS[@]} -gt 0 ]; then set -- "${PASS_ARGS[@]}"; else set --; fi
 if [ "$SETUP" = "1" ]; then
   # 依赖清单只有 tools/check_deps.py 一处（与 requirements.txt 同源），这里不内联抄。
   if [ ! -x "$ROOT/venv/bin/python" ] || \
-     ! "$ROOT/venv/bin/python" "$ROOT/tools/check_deps.py" >/dev/null 2>&1; then
+     ! "$ROOT/venv/bin/python" "$ROOT/tools/check_deps.py" --gate >/dev/null 2>&1; then
     echo "== 环境缺失或依赖不全：创建虚拟环境并安装依赖 =="
     "$ROOT/tools/linux_setup.sh" --venv || {
       echo "✗ 环境创建失败。若缺系统包，先跑：$ROOT/tools/linux_setup.sh --install-system" >&2

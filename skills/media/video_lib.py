@@ -26,9 +26,25 @@ import os
 from concurrent.futures import ThreadPoolExecutor
 
 import requests
-import yt_dlp
+try:
+    import yt_dlp
+except ImportError:
+    # 缺 yt-dlp 只该让「靠它解析」的路径失效，不该让整个模块 import 失败——
+    # 否则连 PLATFORMS 都拿不到，B 站官方 API / AcFun REST 这些不依赖它的功能会一起 500。
+    yt_dlp = None
 
 log = logging.getLogger("video_lib")
+
+YTDLP_MISSING_HINT = (
+    "缺少 yt-dlp：YouTube、自定义源与 B 站 yt-dlp 兜底路径不可用。"
+    "修复：phoenix.bat --setup  /  phoenix.sh --setup"
+)
+
+
+def ensure_ytdlp() -> None:
+    """在真正要调 yt_dlp 的地方调用：把 None 上的 AttributeError 换成可照抄的修复指引。"""
+    if yt_dlp is None:
+        raise RuntimeError(YTDLP_MISSING_HINT)
 
 
 def _iter_ffmpeg_candidates():
@@ -457,6 +473,123 @@ def _register_stream(item, **extra):
     return key
 
 
+# ---------------------------------------------------------------------------
+# B 站直链解析：走官方 API（pagelist + playurl），不抓 www 网页
+# ---------------------------------------------------------------------------
+# 2026-09 起 B 站对非浏览器客户端返回 412：www.bilibili.com/video/* 与
+# x/web-interface/view 一律 412，yt-dlp 抓网页解析 100% 失败（补 buvid3/buvid4
+# 也救不了），而 x/player/pagelist 与 x/player/playurl 正常。故 B 站解析改走
+# API，产出 yt-dlp 风格 info，供 resolve() 的选流/测速/注册流程原样复用。
+_BILI_QN_HEIGHT = {127: 4320, 126: 2160, 125: 2160, 120: 2160, 116: 1080,
+                   112: 1080, 80: 1080, 74: 720, 64: 720, 32: 480, 16: 360, 6: 240}
+
+
+def _bili_session():
+    """带 buvid cookie 的 B 站会话（热门榜/搜索/解析共用同一套预热）。"""
+    s = requests.Session()
+    s.headers.update({"User-Agent": UA, "Referer": "https://www.bilibili.com/",
+                      "Accept-Language": "zh-CN,zh;q=0.9"})
+    ck = bili_cookiefile()
+    if ck:
+        try:
+            for ln in open(ck, encoding="utf-8"):
+                ln = ln.strip()
+                if not ln or ln.startswith("#"):
+                    continue
+                parts = ln.split("\t")
+                if len(parts) >= 7:
+                    s.cookies.set(parts[5], parts[6], domain=".bilibili.com")
+        except Exception as exc:
+            log.warning("read bili cookie file failed: %s", exc)
+    if not s.cookies.get("buvid3"):
+        s.cookies.set("buvid3", uuid.uuid4().hex[:16] + "infoc", domain=".bilibili.com")
+    return s
+
+
+def _bili_playurl(s, bvid, cid, fnval, qn=80):
+    """playurl 接口；fnval=16 取 DASH 分离流，fnval=1 取 durl 合一 mp4。"""
+    r = s.get("https://api.bilibili.com/x/player/playurl",
+              params={"bvid": bvid, "cid": cid, "qn": qn, "fnval": fnval, "fourk": 1},
+              timeout=15)
+    r.raise_for_status()
+    j = r.json()
+    if j.get("code") != 0:
+        raise RuntimeError(f"bilibili playurl code={j.get('code')}: {j.get('message')}")
+    return j.get("data") or {}
+
+
+def _bili_dash_formats(dash):
+    """DASH 分离流 → yt-dlp 风格 formats（视频轨无音轨、音频轨无视频轨），
+    交给 _pick_streams 组 relay，与 YouTube/AcFun 走同一条合流路径。"""
+    out = []
+    for v in dash.get("video") or []:
+        u = v.get("baseUrl") or next(iter(v.get("backupUrl") or []), None)
+        if not u:
+            continue
+        out.append({"url": u, "ext": "mp4", "protocol": "https",
+                    "vcodec": v.get("codecs") or "avc1", "acodec": None,
+                    "width": v.get("width"), "height": v.get("height"),
+                    "tbr": (v.get("bandwidth") or 0) / 1000.0})
+    for a in dash.get("audio") or []:
+        u = a.get("baseUrl") or next(iter(a.get("backupUrl") or []), None)
+        if not u:
+            continue
+        out.append({"url": u, "ext": "m4a", "protocol": "https",
+                    "vcodec": None, "acodec": a.get("codecs") or "mp4a",
+                    "abr": (a.get("bandwidth") or 0) / 1000.0})
+    return out
+
+
+def _bili_durl_formats(data):
+    """durl（音视频合一 mp4，未登录上限 720p）→ direct 播放：单文件可 seek、
+    秒开、不依赖 ffmpeg。仅 ffmpeg 缺失或 DASH 不可用时兜底；多段 durl 需要
+    ffmpeg 拼接，直接放弃——宁可回落 yt-dlp，也不静默只播第一段。"""
+    segs = [d for d in (data.get("durl") or []) if d.get("url")]
+    if len(segs) != 1:
+        raise RuntimeError(f"bilibili durl has {len(segs)} segments")
+    h = _BILI_QN_HEIGHT.get(int(data.get("quality") or 64), 720)
+    return [{"url": segs[0]["url"], "ext": "mp4", "protocol": "https",
+             "vcodec": "avc1.640033", "acodec": "mp4a.40.2", "height": h}]
+
+
+def _bili_api_info(url):
+    """B 站直链解析（官方 API）：pagelist 取 cid → playurl 取流。
+
+    ffmpeg 可用时优先 DASH（1080p，relay 合流）；否则退回 durl 单文件直链。
+    返回 yt-dlp 风格 info，供 resolve() 后续流程原样复用。
+    """
+    m = re.search(r"(BV[0-9A-Za-z]{10})", url)
+    if not m:
+        raise RuntimeError("no BV id in url")
+    bvid = m.group(1)
+    s = _bili_session()
+    pl = s.get("https://api.bilibili.com/x/player/pagelist",
+               params={"bvid": bvid}, timeout=12).json()
+    if pl.get("code") != 0:
+        raise RuntimeError(f"bilibili pagelist code={pl.get('code')}: {pl.get('message')}")
+    pages = pl.get("data") or []
+    if not pages or not pages[0].get("cid"):
+        raise RuntimeError("bilibili pagelist empty")
+    cid = pages[0]["cid"]
+    formats = []
+    if FFMPEG:
+        try:
+            formats = _bili_dash_formats(_bili_playurl(s, bvid, cid, 16).get("dash") or {})
+        except Exception as exc:
+            log.warning("bilibili dash unavailable: %s", str(exc)[:120])
+    if not formats:
+        formats = _bili_durl_formats(_bili_playurl(s, bvid, cid, 1))
+    return {
+        "id": bvid,
+        "title": pages[0].get("part") or bvid,
+        "webpage_url": f"https://www.bilibili.com/video/{bvid}",
+        "extractor_key": "BiliBili",
+        "http_headers": {"User-Agent": UA, "Referer": "https://www.bilibili.com/",
+                         "Accept-Language": "zh-CN,zh;q=0.9"},
+        "formats": formats,
+    }
+
+
 def resolve(url, need_stream=True, force=False):
     """统一解析入口（yt-dlp，B 站带 buvid cookie 预热）。
     force=True 跳过缓存强制重解析（断流自动恢复用：拿全新直链与流 key）。"""
@@ -474,17 +607,27 @@ def resolve(url, need_stream=True, force=False):
     # YouTube relay 实际经代理拉流（ffmpeg -http_proxy），测速须同路径才准，
     # 否则直连必失败 → 误判慢流 → 降级到错误档位
     yt_probe = {"http": _YT_PROXY, "https": _YT_PROXY} if is_yt else None
-    if re.search(r"(?:^|\.)bilibili\.com", url):
+    is_bili = bool(re.search(r"(?:^|\.)bilibili\.com", url))
+    if is_bili:
         ck = bili_cookiefile()
         if ck:
-            opts["cookiefile"] = ck
+            opts["cookiefile"] = ck   # 仅供 yt-dlp 兜底路径使用
     picked = None
     headers = {}
     # 两轮解析：首轮选流后实测拉速，慢节点（卡顿根因）时丢弃重解析换
     # CDN 节点再来一次；direct/HLS 无需测速一轮即定。
     for attempt in (0, 1):
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+        info = None
+        if is_bili:
+            try:
+                info = _bili_api_info(url)
+            except Exception as exc:
+                log.warning("bilibili api resolve failed, fallback yt-dlp: %s",
+                            str(exc)[:120])
+        if info is None:
+            ensure_ytdlp()
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(url, download=False)
         entry = _normalize_info(info, url)
         if not need_stream:
             break
@@ -594,23 +737,7 @@ def _bili_video_search_page(query, limit=12, page=1, order=""):
 
     order：""=综合 / "click"=最多点击 / "pubdate"=最新发布。"""
     page = max(1, int(page or 1))
-    s = requests.Session()
-    s.headers.update({"User-Agent": UA, "Referer": "https://www.bilibili.com/",
-                      "Accept-Language": "zh-CN,zh;q=0.9"})
-    ck = bili_cookiefile()  # 预热 buvid cookie（缓解 412 风控）
-    if ck:
-        try:
-            for ln in open(ck, encoding="utf-8"):
-                ln = ln.strip()
-                if not ln or ln.startswith("#"):
-                    continue
-                parts = ln.split("\t")
-                if len(parts) >= 7:
-                    s.cookies.set(parts[5], parts[6], domain=".bilibili.com")
-        except Exception as exc:
-            log.warning("read bili cookie file failed: %s", exc)
-    if not s.cookies.get("buvid3"):
-        s.cookies.set("buvid3", uuid.uuid4().hex[:16] + "infoc", domain=".bilibili.com")
+    s = _bili_session()
     params = {"Search_key": query, "keyword": query, "page": page,
               "context": "", "duration": 0, "tids_2": "",
               "__refresh__": "true", "search_type": "video",
@@ -670,6 +797,7 @@ def _bilibili_search(query, limit=12, page=1, order=""):
     ck = bili_cookiefile()
     if ck:
         opts["cookiefile"] = ck
+    ensure_ytdlp()
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(f"bilisearch{(page + 1) * limit + 3}:{query}",
                                 download=False)
@@ -811,6 +939,7 @@ def _custom_search(src: dict, query: str, limit: int, page: int) -> list:
         # 正则没抓到 → 退回 yt-dlp flat 提取
         try:
             opts = dict(BASE_OPTS, extract_flat=True, skip_download=True)
+            ensure_ytdlp()
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(search_url, download=False)
             for e in (info.get("entries") or []) if info else []:
@@ -902,6 +1031,10 @@ def _bili_flat_candidates(query, count=3):
     ck = bili_cookiefile()
     if ck:
         opts["cookiefile"] = ck
+    if yt_dlp is None:
+        # 这条是点播提速的纯优化路径，缺 yt-dlp 时静默降级：
+        # 调用方 play_by_query 拿不到候选会自动回退到 REST 搜索，不必每次刷一条 warning。
+        return []
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(f"bilisearch{count + 3}:{query}", download=False)
     out = []
@@ -1259,6 +1392,7 @@ def youtube_search(query, limit=12, page=1, sort="relevance"):
     limit = max(1, int(limit or 12))
     total = page * limit + 3
     opts = dict(BASE_OPTS, extract_flat=True, skip_download=True, proxy=_YT_PROXY)
+    ensure_ytdlp()
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(f"ytsearch{total}:{query}", download=False)
     out = []
@@ -1300,23 +1434,7 @@ def _bilibili_hot(limit=12, page=1):
     """B 站官方热门榜：x/web-interface/popular（复用 buvid cookie 预热防 412）。"""
     page = max(1, int(page or 1))
     limit = max(1, int(limit or 12))
-    s = requests.Session()
-    s.headers.update({"User-Agent": UA, "Referer": "https://www.bilibili.com/",
-                      "Accept-Language": "zh-CN,zh;q=0.9"})
-    ck = bili_cookiefile()
-    if ck:
-        try:
-            for ln in open(ck, encoding="utf-8"):
-                ln = ln.strip()
-                if not ln or ln.startswith("#"):
-                    continue
-                parts = ln.split("\t")
-                if len(parts) >= 7:
-                    s.cookies.set(parts[5], parts[6], domain=".bilibili.com")
-        except Exception as exc:
-            log.warning("read bili cookie file failed: %s", exc)
-    if not s.cookies.get("buvid3"):
-        s.cookies.set("buvid3", uuid.uuid4().hex[:16] + "infoc", domain=".bilibili.com")
+    s = _bili_session()
     r = s.get("https://api.bilibili.com/x/web-interface/popular",
               params={"ps": min(limit, 20), "pn": page}, timeout=12)
     r.raise_for_status()
@@ -1485,6 +1603,7 @@ def youtube_hot(limit=12, page=1):
     last_err = None
     for u in urls:
         try:
+            ensure_ytdlp()
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(u, download=False)
             entries = info.get("entries") or []
