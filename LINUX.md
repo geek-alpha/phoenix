@@ -21,7 +21,7 @@ sudo apt-get install -y python3-venv python3-dev ffmpeg ripgrep
 ./tools/linux_setup.sh --venv
 
 # 2) 环境自检（推荐每次启动前跑）
-./dabai.sh --check        # 或 python3 tools/linux_selfcheck.py
+./dabai.sh --check        # 或 python3 tools/selfcheck.py
 
 # 3) 启动
 ./dabai.sh

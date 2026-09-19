@@ -1,32 +1,46 @@
-Pillow
-TodoService
-addon_utils
-aiohttp
-amazing_agent_dingding
-anthropic
-bmesh
-bpy
-bpy_extras
-certifi
-dabai_ears
-dabai_voice
-edge_tts
+# Phoenix 依赖清单（Windows / Linux / macOS 通用）
+#
+# 单一来源：平台差异用 PEP 508 环境标记表达，不要再手写两份清单——两份必然漂。
+#   uvloop / httptools 官方不支持 Windows（PyPI 上没有 win wheel），装也装不上；
+#   server.py 启动时逐个探测，装了才用，缺了自动退回 asyncio + h11，不再硬编码崩。
+#
+# 安装：pip install -r requirements.txt
+# 兼容壳：requirements-linux.txt 内容就是 `-r requirements.txt`，老脚本/老文档仍可用。
+
+# ---- 启动必需：缺任意一个 server.py 都起不来 ----
 fastapi
-fuctions_all_you_need_base
-google
-gradio_client
-httpx
-imp
-mathutils
-netifaces
-numpy
-openai
-playwright
-pyautogui
-python-dotenv
-requests
-rna_prop_ui
-starlette
-tree_sitter
 uvicorn
+python-multipart  # FastAPI 的 UploadFile/File 路由在加载期就要它（本服务有上传接口）
+websockets        # uvicorn 的 WebSocket 实现；缺了前端实时对话连不上
+uvloop; sys_platform != "win32"
+httptools; sys_platform != "win32"
+aiohttp
+requests
+starlette
+httpx
+numpy
+Pillow
+edge-tts
+openai
+anthropic
+gradio_client
+python-dotenv
+certifi
+tree_sitter
+mss
+netifaces
 yt_dlp
+playwright
+
+# ---- 能力依赖：缺了对应功能静默降级，不阻塞启动 ----
+cryptography      # tls_cert.py 生成 TLS 证书的首选后端（缺了退 openssl 命令行）
+pypdf             # attach_text.py:56 PDF 附件正文提取（缺了 PDF 打不开）
+qrcode            # server.py:1779 手机配对二维码（缺了扫码入口不可用）
+
+# ---- pip 面外：Blender 内嵌 Python 的模块，PyPI 上不存在 ----
+# bpy / bmesh / mathutils / addon_utils / rna_prop_ui
+#   模型转换（PMX→VRM）技能要它们。装系统 Blender，再用 DABAI_BLENDER 指向它。
+#
+# ---- 可选 ----
+# pyautogui    # 截屏/自动化；Linux 需 python3-xlib，装不上走 mss
+# sounddevice  # 语音输入

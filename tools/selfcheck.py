@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""大白 Linux/macOS 环境自检 —— 启动前跑一遍，把"运行期才会炸的问题"提前暴露。
+"""Phoenix 环境自检（Windows / Linux / macOS）—— 启动前跑一遍，把"运行期才会炸的问题"提前暴露。
 
 用法：
-    python3 tools/linux_selfcheck.py          # 人类可读报告
-    python3 tools/linux_selfcheck.py --json   # 机器可读（CI 用）
+    python3 tools/selfcheck.py          # 人类可读报告
+    python3 tools/selfcheck.py --json   # 机器可读（CI 用）
 
 退出码：0 = 可启动（可能有警告）；1 = 存在阻塞项。
+
+原名 linux_selfcheck.py；Windows 要跑同一套检查，故去掉平台前缀。
 """
 from __future__ import annotations
 
@@ -20,6 +22,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # 同目录的 check_deps.py
+
+IS_WINDOWS = sys.platform == "win32"
 
 OK, WARN, FAIL = "OK", "WARN", "FAIL"
 _rows: list[tuple[str, str, str]] = []
@@ -74,13 +79,12 @@ def main() -> int:
           "" if web_index.is_file() else "缺失（网页界面不可用）")
 
     # 4) 关键依赖
-    # 与 requirements-linux.txt 的「启动必需」段一致：这些缺一个 server.py 就起不来。
-    # 原来只查 6 个，漏掉 uvloop/httptools/python-multipart —— 实测全新 venv 装上
-    # 那 19 个包后启动，依次报的正是这三个。
-    core = ["fastapi", "uvicorn", "uvloop", "httptools", "multipart", "websockets",
-            "aiohttp", "requests", "starlette", "numpy", "edge_tts", "openai"]
-    missing = [m for m in core if not _has(m)]
-    check("核心依赖", FAIL if missing else OK, "缺少：" + ", ".join(missing) if missing else "")
+    # 清单来自 tools/check_deps.py（与 requirements.txt 同源），不在这里再抄一份——
+    # 抄一份的下场就是漏掉 uvloop/httptools/python-multipart 这类「一 import 就崩」的。
+    from check_deps import missing as missing_deps
+    miss = missing_deps()
+    check("核心依赖", FAIL if miss else OK,
+          "缺少：" + ", ".join(p for _, p in miss) if miss else "")
 
     # 缺了只降级不阻塞：PDF 附件 / 手机配对码 / 证书生成后端
     optional = ["PIL", "mss", "playwright", "yt_dlp", "netifaces",
@@ -94,6 +98,12 @@ def main() -> int:
         p = shutil.which(tool)
         check(f"外部工具 {tool}", OK if p else WARN, p or f"未找到（{why} 受影响）")
     blender = shutil.which("blender") or os.environ.get("DABAI_BLENDER", "")
+    if not blender and IS_WINDOWS:
+        base = Path(r"C:\Program Files\Blender Foundation")
+        if base.is_dir():
+            hits = sorted(base.glob("Blender */blender.exe"), reverse=True)
+            if hits:
+                blender = str(hits[0])
     check("Blender（模型转换）", OK if blender else WARN,
           blender or "未找到（PMX→VRM 技能不可用，可设 DABAI_BLENDER）")
     chrome = os.environ.get("DABAI_CHROME", "")
@@ -102,13 +112,23 @@ def main() -> int:
             if shutil.which(name):
                 chrome = shutil.which(name)
                 break
+    if not chrome and IS_WINDOWS:
+        for p in (r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+                  r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+                  os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe")):
+            if Path(p).is_file():
+                chrome = p
+                break
     check("Chrome/Chromium（网页深挖）", OK if chrome else WARN,
           chrome or "未找到（JS 页面抓取降级为 requests）")
 
-    # 6) 图形会话（截屏/声音需要）
-    disp = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
-    check("图形会话", OK if disp else WARN,
-          f"DISPLAY={disp}" if disp else "无 DISPLAY/WAYLAND_DISPLAY（截屏不可用）")
+    # 6) 图形会话（截屏/声音需要）—— Windows 没有 DISPLAY 变量，桌面会话恒存在
+    if IS_WINDOWS:
+        check("图形会话", OK, "Windows 桌面会话")
+    else:
+        disp = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+        check("图形会话", OK if disp else WARN,
+              f"DISPLAY={disp}" if disp else "无 DISPLAY/WAYLAND_DISPLAY（截屏不可用）")
     in_container = Path("/.dockerenv").exists()
     if not in_container and Path("/proc/1/cgroup").is_file():
         try:
@@ -178,7 +198,7 @@ def main() -> int:
         print(json.dumps([{"item": n, "level": l, "detail": d} for n, l, d in _rows],
                          ensure_ascii=False, indent=2))
     else:
-        print(f"大白环境自检 —— {sys.platform} / Python {v.major}.{v.minor}.{v.micro}")
+        print(f"Phoenix 环境自检 —— {sys.platform} / Python {v.major}.{v.minor}.{v.micro}")
         print(f"项目根：{ROOT}\n")
         width = max(len(n) for n, _, _ in _rows)
         for name, level, detail in _rows:
