@@ -17,6 +17,7 @@ import os
 import re
 import shutil
 import socket
+import subprocess
 import sys
 from pathlib import Path
 
@@ -103,6 +104,24 @@ def main() -> int:
     for tool, why in (("ffmpeg", "音视频处理"), ("git", "代码工程技能"), ("rg", "快速检索（可回退）")):
         p = shutil.which(tool)
         check(f"外部工具 {tool}", OK if p else WARN, p or f"未找到（{why} 受影响）")
+
+    # 前端 .ts 靠常驻 Node worker 实时转译（server.py 的 TSTranspileMiddleware）。
+    # node 缺失时服务照常起，但 /static/*.ts 会原样下发 → 浏览器语法报错 → 页面永远
+    # 停在「连接中…」，而服务端一行错都不报。所以必须在自检里点出来。
+    node = shutil.which("node")
+    if not node:
+        check("Node.js（前端必需）", WARN,
+              "未找到：网页会永远卡在「连接中…」。装 Node.js 22.6+ 后重启服务")
+    else:
+        try:
+            raw = subprocess.run([node, "--version"], capture_output=True, text=True,
+                                 timeout=10).stdout.strip().lstrip("v")
+            major, minor = (int(x) for x in (raw.split(".") + ["0", "0"])[:2])
+            ok = (major, minor) >= (22, 6)
+            check("Node.js（前端必需）", OK if ok else WARN,
+                  raw if ok else f"{raw} 过低：需要 22.6+（module.stripTypeScriptTypes），否则网页卡在「连接中…」")
+        except Exception as e:
+            check("Node.js（前端必需）", WARN, f"版本探测失败：{e.__class__.__name__}: {e}")
     blender = shutil.which("blender") or os.environ.get("PHOENIX_BLENDER", "")
     if not blender and IS_WINDOWS:
         base = Path(r"C:\Program Files\Blender Foundation")
@@ -191,7 +210,6 @@ def main() -> int:
         except Exception as e:
             check("磁盘空间读取", WARN, f"{e.__class__.__name__}: {e}")
         try:
-            import subprocess
             p = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(2)"],
                                  **pc.spawn_kwargs(new_group=True))
             ok, reason = pc.terminate_tree(p.pid, timeout=5)

@@ -134,7 +134,24 @@ MODELS_DIR = BASE_DIR / "models"
 BACKGROUNDS_DIR = BASE_DIR / "backgrounds"
 # 聊天附件（用户发来的图片/文件）：按用户隔离、按天分目录，入口见 /api/upload
 UPLOADS_DIR = BASE_DIR / "data" / "uploads"
-SERVER_PORT = 8000
+def _env_port(default: int = 8000) -> int:
+    """PHOENIX_PORT 覆盖监听端口（phoenix.bat / phoenix.sh 的用法说明里承诺过）。
+
+    非法值直接退回默认端口，而不是抛在 import 期——端口写错不该让整个服务起不来。
+    旧名 DABAI_PORT 由 env_compat.promote_legacy_env() 在文件开头统一提升（server.py:41），
+    这里只看新名。
+    """
+    raw = (os.environ.get("PHOENIX_PORT") or "").strip()
+    if not raw:
+        return default
+    try:
+        port = int(raw)
+    except ValueError:
+        return default
+    return port if 1 <= port <= 65535 else default
+
+
+SERVER_PORT = _env_port()
 AUDIO_DIR.mkdir(exist_ok=True)
 MODELS_DIR.mkdir(exist_ok=True)
 BACKGROUNDS_DIR.mkdir(exist_ok=True)
