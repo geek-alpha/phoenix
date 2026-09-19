@@ -11,14 +11,15 @@
 # 自己拉起新进程，脚本再 spawn 的第二个实例只会 bind 失败 —— 抢活只会打架。
 # 谁托管就找谁重启：动作交给 systemd，脚本只负责下令 + 验收 + 留证据。
 #
-# 环境变量（测试/多实例用）：DABAI_UNIT / DABAI_REPORT / DABAI_WAIT_SECS
+# 环境变量（测试/多实例用）：PHOENIX_UNIT / PHOENIX_REPORT / PHOENIX_WAIT_SECS
+# 旧名 DABAI_* 继续可用（已部署实例的脚本里写死了）
 set -uo pipefail
 
-UNIT="${DABAI_UNIT:-myservice.service}"
+UNIT="${PHOENIX_UNIT:-${DABAI_UNIT:-myservice.service}}"
 ROOT="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
 PY="$ROOT/venv/bin/python"
-REPORT="${DABAI_REPORT:-$ROOT/data/restart_report.txt}"
-WAIT_SECS="${DABAI_WAIT_SECS:-60}"
+REPORT="${PHOENIX_REPORT:-${DABAI_REPORT:-$ROOT/data/restart_report.txt}}"
+WAIT_SECS="${PHOENIX_WAIT_SECS:-${DABAI_WAIT_SECS:-60}}"
 
 MODE="restart"
 DELAY=0
@@ -77,9 +78,9 @@ PORTS="$(ss -tln 2>/dev/null | grep -oE ':(8000|8001)\b' | sort -u | tr '\n' ' '
   echo "方式: $METHOD"
   echo "新 PID: ${NEW_PID:-未起来}  状态: ${STATE:-?}  起于: $(unit_show ActiveEnterTimestamp)"
   echo "监听端口: ${PORTS:-无}"
-  if [ "${DABAI_NO_RECHECK:-0}" = "1" ]; then
+  if [ "${PHOENIX_NO_RECHECK:-${DABAI_NO_RECHECK:-0}}" = "1" ]; then
     # reload_check 反向调本脚本体检时会设它 —— 两边互相调用会转不出来
-    echo "--- 核心文件生效检查：已跳过（DABAI_NO_RECHECK=1，防递归）---"
+    echo "--- 核心文件生效检查：已跳过（PHOENIX_NO_RECHECK=1，防递归）---"
   else
     echo "--- 核心文件生效检查（进程启动时间 vs 核心文件 mtime）---"
     "$PY" "$ROOT/tools/reload_check.py" 2>&1 | tail -20

@@ -10,7 +10,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-PY="${DABAI_PYTHON:-python3}"
+PY="${PHOENIX_PYTHON:-${DABAI_PYTHON:-python3}}"
 SYS_PKGS=(python3-venv python3-dev ffmpeg ripgrep)
 DO_SYSTEM=0
 DO_VENV=0

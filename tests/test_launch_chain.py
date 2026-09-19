@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import importlib.util
 import re
+import sys
 from pathlib import Path
 
 import pytest
@@ -72,7 +73,7 @@ def test_uvloop_httptools_are_windows_exempt():
 
 def test_launch_scripts_reference_existing_files():
     """脚本里写死的 tools/* 路径必须真实存在——改名漏一处就是启动即崩。"""
-    for script in ("dabai.sh", "dabai.bat", "tools/linux_setup.sh"):
+    for script in ("phoenix.sh", "phoenix.bat", "tools/linux_setup.sh"):
         text = (ROOT / script).read_text(encoding="utf-8")
         for ref in sorted(set(re.findall(r"tools[/\\]([A-Za-z0-9_]+\.(?:py|sh))", text))):
             assert (ROOT / "tools" / ref).is_file(), f"{script} 引用了不存在的 tools/{ref}"
@@ -80,19 +81,19 @@ def test_launch_scripts_reference_existing_files():
 
 def test_bat_and_sh_options_aligned():
     """Windows 与 Linux 的入口脚本必须支持同一组开关，否则「一键启动」只在一边成立。"""
-    sh = (ROOT / "dabai.sh").read_text(encoding="utf-8")
-    bat = (ROOT / "dabai.bat").read_text(encoding="utf-8")
+    sh = (ROOT / "phoenix.sh").read_text(encoding="utf-8")
+    bat = (ROOT / "phoenix.bat").read_text(encoding="utf-8")
     for opt in ("--setup", "--check"):
-        assert opt in sh, f"dabai.sh 缺 {opt}"
-        assert opt in bat, f"dabai.bat 缺 {opt}"
+        assert opt in sh, f"phoenix.sh 缺 {opt}"
+        assert opt in bat, f"phoenix.bat 缺 {opt}"
 
 
 def test_bat_goto_labels_exist():
     """bat 的 goto 目标必须存在——标签写错，cmd 会一路走到文件末尾静默退出。"""
-    bat = (ROOT / "dabai.bat").read_text(encoding="utf-8")
+    bat = (ROOT / "phoenix.bat").read_text(encoding="utf-8")
     labels = {m.group(1).lower() for m in re.finditer(r"^\s*:([A-Za-z0-9_]+)\s*$", bat, re.M)}
     targets = {m.group(1).lower() for m in re.finditer(r"\bgoto\s+([A-Za-z0-9_]+)", bat, re.I)}
-    assert targets <= labels, f"dabai.bat 的 goto 指向不存在的标签：{sorted(targets - labels)}"
+    assert targets <= labels, f"phoenix.bat 的 goto 指向不存在的标签：{sorted(targets - labels)}"
 
 
 def test_server_does_not_hardcode_uvloop():
@@ -111,3 +112,80 @@ def test_requirements_linux_is_compat_shell():
 def test_legacy_dead_cli_removed():
     """dabai.py 引用不存在的 amazing_agent_dingding/dabai_voice/dabai_ears，是不可运行的死代码。"""
     assert not (ROOT / "dabai.py").exists()
+
+
+def _load_env_compat():
+    spec = importlib.util.spec_from_file_location("env_compat", ROOT / "env_compat.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_new_entry_points_exist():
+    """新入口一个都不能少：文档里写的就是这四个名字。"""
+    for name in ("phoenix.sh", "phoenix.bat", "phoenix", "phoenix_cli.py"):
+        assert (ROOT / name).is_file(), f"新入口缺失：{name}"
+
+
+def test_legacy_aliases_forward_to_new_names():
+    """旧名必须留转发壳：已部署实例的 systemd / crontab / 旧文档里写死了 dabai.*，
+    升级后删掉就是断链。壳里必须出现新名——否则转发到自己会无限递归。"""
+    for legacy, target in (("dabai.sh", "phoenix.sh"), ("dabai.bat", "phoenix.bat"),
+                           ("dabai", "phoenix"), ("dabai_cli.py", "phoenix_cli.py")):
+        path = ROOT / legacy
+        assert path.is_file(), f"旧名转发壳缺失：{legacy}（已部署实例会断链）"
+        assert target in path.read_text(encoding="utf-8"), f"{legacy} 没有转发到 {target}"
+
+
+def test_launch_scripts_do_not_reference_old_names():
+    """新入口里不许再出现旧名——脚本自己引用自己，用户按提示敲的就是不存在的文件。"""
+    for script in ("phoenix.sh", "phoenix.bat"):
+        text = (ROOT / script).read_text(encoding="utf-8")
+        body = "\n".join(ln for ln in text.splitlines()
+                         if not ln.strip().startswith(("#", "rem")))
+        assert "dabai.sh" not in body and "dabai.bat" not in body, \
+            f"{script} 仍在引用旧脚本名"
+
+
+def test_env_compat_bridges_both_prefixes(monkeypatch):
+    """改名不能断环境变量：只设旧名要能读到新名、只设新名要能读到旧名、冲突时新名优先。"""
+    import os
+
+    mod = _load_env_compat()
+
+    def clear():
+        for k in [k for k in os.environ if k.startswith(("DABAI_", "PHOENIX_"))]:
+            os.environ.pop(k, None)
+
+    for k in [k for k in os.environ if k.startswith(("DABAI_", "PHOENIX_"))]:
+        monkeypatch.delenv(k, raising=False)
+    try:
+        clear()
+        os.environ["DABAI_PORT"] = "9001"
+        mod.promote_legacy_env()
+        assert os.environ.get("PHOENIX_PORT") == "9001", "旧名没有提升为新名"
+
+        clear()
+        os.environ["PHOENIX_WORKSPACE"] = "/tmp/ws"
+        mod.promote_legacy_env()
+        assert os.environ.get("DABAI_WORKSPACE") == "/tmp/ws", "新名没有回填旧名"
+
+        clear()
+        os.environ["DABAI_PORT"], os.environ["PHOENIX_PORT"] = "1", "2"
+        mod.promote_legacy_env()
+        assert os.environ["DABAI_PORT"] == "2", "两个都设且不同值时，应新名优先"
+    finally:
+        clear()
+        monkeypatch.undo()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Windows 没有 POSIX 可执行位")
+def test_shell_entry_points_are_executable():
+    """入口脚本丢了 +x 就是 Permission denied —— 用户照文档敲的第一条命令就失败。
+
+    踩过：新建的转发壳默认 644，把 git mv 保住的 755 覆盖掉，而测试只查内容不查权限，
+    一路绿灯到用户手上才炸。
+    """
+    for name in ("phoenix.sh", "phoenix", "dabai.sh", "dabai"):
+        mode = (ROOT / name).stat().st_mode
+        assert mode & 0o111, f"{name} 没有可执行位（chmod +x）"

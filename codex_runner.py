@@ -936,7 +936,7 @@ def _env_workspace() -> str:
     全局 work_dir 是 server 与所有子进程共享的配置，改它会污染主会话；
     环境变量天然只作用于本进程及其子进程，所以隔离走这里。
     """
-    return (os.environ.get('DABAI_WORKSPACE') or '').strip()
+    return (os.environ.get('PHOENIX_WORKSPACE') or os.environ.get('DABAI_WORKSPACE') or '').strip()
 
 
 class Executor:

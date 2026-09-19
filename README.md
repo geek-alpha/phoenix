@@ -1,4 +1,4 @@
-# dabai
+# Phoenix
 
 > 一个使用 JavaScript, Python, HTML, CSS 开发的项目。
 
@@ -10,11 +10,11 @@
 
 ## 🧠 Harness 扩展框架（技能 / 插件）
 
-「大白」内置稳定的 harness 运行时，通过**技能（Skill）**与**插件（Plugin）**
+Phoenix 内置稳定的 harness 运行时，通过**技能（Skill）**与**插件（Plugin）**
 持续扩展能力，无需改动核心代码：
 
 - 📖 完整文档见 [HARNESS.md](HARNESS.md)
-- 🖥 管理台：浏览器打开 http://<大白地址>/harness
+- 🖥 管理台：浏览器打开 http://<Phoenix 地址>/harness
 - 🧩 技能目录 skills/（内置：文件助手、天气、AI 画图）
 - 🔌 插件目录 plugins/（内置：hello_plugin 示例）
 - 🪶 渐进式披露：settings.json 开启 harness.progressive_disclosure 后，on_demand 技能按需注入
@@ -39,8 +39,8 @@ npm install
 Python 环境（Linux / macOS）：
 
 ```bash
-./dabai.sh --setup     # 一键：建 venv + 装依赖 + 自检 + 启动
-./dabai.sh --check     # 只自检，不启动
+./phoenix.sh --setup     # 一键：建 venv + 装依赖 + 自检 + 启动
+./phoenix.sh --check     # 只自检，不启动
 ```
 
 首次启动会自动从 `settings.example.json` 生成 `settings.json`（该文件不入仓，因为要存你的 API Key）和一张本机自签 TLS 证书。**密钥要自己填**：启动后进设置页填 API Key，或直接改 `settings.json` 的 `api_key`。
@@ -49,9 +49,9 @@ Python 环境（Linux / macOS）：
 
 默认直接跑 HTTPS（自签证书，首次启动生成）。如果你在前面挂了 nginx 做 TLS 终结，把 `settings.json` 的 `harness.http_only` 改成 `true`，服务就只监听 8001 回源端口。
 
-Windows：`dabai.bat --setup`（与 `dabai.sh --setup` 等价：建 venv → 装依赖 → 自检 → 启动），`dabai.bat --check` 只自检不启动。
+Windows：`phoenix.bat --setup`（与 `phoenix.sh --setup` 等价：建 venv → 装依赖 → 自检 → 启动），`phoenix.bat --check` 只自检不启动。
 
-依赖清单两边共用一份 `requirements.txt`，平台差异用 PEP 508 环境标记表达：`uvloop`/`httptools` 标了 `sys_platform != "win32"`，在 Windows 上自动跳过——它们没有 Windows wheel，装了也 import 不了；服务启动时逐个探测，缺了自动退回 asyncio + h11。`bpy`/`bmesh`/`mathutils` 这类 Blender 内嵌模块不在 pip 面内，要用模型转换技能时装系统 Blender 并设 `DABAI_BLENDER` 指向它。
+依赖清单两边共用一份 `requirements.txt`，平台差异用 PEP 508 环境标记表达：`uvloop`/`httptools` 标了 `sys_platform != "win32"`，在 Windows 上自动跳过——它们没有 Windows wheel，装了也 import 不了；服务启动时逐个探测，缺了自动退回 asyncio + h11。`bpy`/`bmesh`/`mathutils` 这类 Blender 内嵌模块不在 pip 面内，要用模型转换技能时装系统 Blender 并设 `PHOENIX_BLENDER` 指向它（旧名 `DABAI_BLENDER` 仍可用）。
 
 ### 运行
 

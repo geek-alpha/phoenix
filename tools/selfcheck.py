@@ -24,6 +24,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # 同目录的 check_deps.py
 
+# 独立进程也要同步新旧环境变量名：用户设了 PHOENIX_BLENDER，下面的 DABAI_* 旧读点
+# 也得看到同一个值（双向同步在 env_compat 里）。
+from env_compat import promote_legacy_env
+
+promote_legacy_env()
+
 IS_WINDOWS = sys.platform == "win32"
 
 OK, WARN, FAIL = "OK", "WARN", "FAIL"
@@ -97,7 +103,7 @@ def main() -> int:
     for tool, why in (("ffmpeg", "音视频处理"), ("git", "代码工程技能"), ("rg", "快速检索（可回退）")):
         p = shutil.which(tool)
         check(f"外部工具 {tool}", OK if p else WARN, p or f"未找到（{why} 受影响）")
-    blender = shutil.which("blender") or os.environ.get("DABAI_BLENDER", "")
+    blender = shutil.which("blender") or os.environ.get("PHOENIX_BLENDER", "")
     if not blender and IS_WINDOWS:
         base = Path(r"C:\Program Files\Blender Foundation")
         if base.is_dir():
@@ -105,8 +111,8 @@ def main() -> int:
             if hits:
                 blender = str(hits[0])
     check("Blender（模型转换）", OK if blender else WARN,
-          blender or "未找到（PMX→VRM 技能不可用，可设 DABAI_BLENDER）")
-    chrome = os.environ.get("DABAI_CHROME", "")
+          blender or "未找到（PMX→VRM 技能不可用，可设 PHOENIX_BLENDER）")
+    chrome = os.environ.get("PHOENIX_CHROME", "")
     if not chrome:
         for name in ("google-chrome", "chromium", "chromium-browser"):
             if shutil.which(name):

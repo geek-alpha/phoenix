@@ -1,4 +1,4 @@
-# 大白在 Linux 上运行
+# Phoenix 在 Linux 上运行
 
 > 目标：**核心能力在 Linux 上可跑**（Web 界面 + 3D 角色 + 对话 + 技能 + agent/harness + 任务中心）。
 > 依赖 Windows 专有软件的能力（汉化流水线、便携 Chrome、Blender 便携版）自动降级或明确报错，
@@ -8,7 +8,7 @@
 
 ```bash
 # 真·一键（首次跑这条就够：建 venv → 装依赖 → 自检 → 启动；幂等，重复跑安全）
-./dabai.sh --setup
+./phoenix.sh --setup
 ```
 
 想分步、或排查问题：
@@ -21,10 +21,10 @@ sudo apt-get install -y python3-venv python3-dev ffmpeg ripgrep
 ./tools/linux_setup.sh --venv
 
 # 2) 环境自检（推荐每次启动前跑）
-./dabai.sh --check        # 或 python3 tools/selfcheck.py
+./phoenix.sh --check        # 或 python3 tools/selfcheck.py
 
 # 3) 启动
-./dabai.sh
+./phoenix.sh
 ```
 
 系统包也想自动装：`./tools/linux_setup.sh --all`（sudo 装系统包 + venv + 自检）。
@@ -83,8 +83,8 @@ sudo apt-get install -y python3-venv python3-dev ffmpeg ripgrep
 | 验证项 | 命令 | 结果 |
 |---|---|---|
 | 兼容层冒烟 14 项（双平台同一套用例） | `python tools/linux_smoke_test.py` | Windows 11 **14/14 PASS**（验 `taskkill` / `tasklist` / `creationflags` 分支）；Linux（`python:3.11-slim` 容器）**14/14 PASS**（验 `/proc` / 进程组 / `fcntl` 分支） |
-| 启动脚本语法 | `bash -n dabai.sh` / `bash -n tools/linux_setup.sh` | 均通过 |
-| 环境自检 | `bash dabai.sh --check` | 20 项检查；缺依赖时正确报阻塞并退出码 1 |
+| 启动脚本语法 | `bash -n phoenix.sh` / `bash -n tools/linux_setup.sh` | 均通过 |
+| 环境自检 | `bash phoenix.sh --check` | 20 项检查；缺依赖时正确报阻塞并退出码 1 |
 | 全项目语法 | `python -m compileall`（排除归档/资源目录） | `COMPILE_OK` |
 | Windows 回归 | `list_processes` / `list_listening_ports` / `disk_free` / `terminate_tree` / `system_check` | 373 进程、88 端口、`taskkill /T /F 成功`（探针父子进程残留为空），与改造前一致 |
 
@@ -505,7 +505,7 @@ ln -sf /usr/local/lib/nodejs/node-v24.21.0-linux-x64/bin/{node,npm,npx} /usr/loc
 
 - 整体回退：`git revert -m 1 748d9d2`
 - 只撤单个文件：`git checkout 748d9d2^ -- <文件>`
-- 新增文件（`platform_compat.py` / `dabai.sh` / `tools/linux_*` / `LINUX.md`）直接删除即可，不影响原有能力
+- 新增文件（`platform_compat.py` / `phoenix.sh` / `tools/linux_*` / `LINUX.md`）直接删除即可，不影响原有能力
 
 注意：临时 `.bak-<时间戳>` 备份已清理，回滚请依赖 git 历史，不要依赖备份文件。
 行尾已由 `.gitattributes` 固定（`*.sh` = LF），克隆到 Linux 不会出现 `bad interpreter`。

@@ -37,13 +37,21 @@ from datetime import datetime
 from pathlib import Path
 
 BASE = Path(__file__).resolve().parents[2]
+if str(BASE) not in sys.path:
+    sys.path.insert(0, str(BASE))
+
+# runner 自己起独立进程，环境变量同步得在这里做（不经过 server.py 的启动路径）。
+from env_compat import promote_legacy_env
+
+promote_legacy_env()
+
 RUN_DIR = BASE / "data" / "longrun"
 JOURNAL = RUN_DIR / "journal.jsonl"
 STATE = RUN_DIR / "state.json"
 STOP = RUN_DIR / "STOP"
 HEARTBEAT = RUN_DIR / "heartbeat"
 LEDGER = BASE / "long_horizon.json"
-CLI = BASE / "dabai_cli.py"
+CLI = BASE / "phoenix_cli.py"
 PY = BASE / "venv" / "bin" / "python"
 
 INTERVAL = int(os.environ.get("LONGRUN_INTERVAL", "300"))
@@ -444,7 +452,7 @@ def sweep_orphans() -> int:
             cmd = (entry / "cmdline").read_bytes().replace(b"\x00", b" ").decode("utf-8", "replace")
         except Exception:
             continue
-        if "dabai_cli.py" in cmd and "longrun_" in cmd:
+        if ("phoenix_cli.py" in cmd or "dabai_cli.py" in cmd) and "longrun_" in cmd:
             try:
                 ppid = int((entry / "stat").read_text().split(")", 1)[1].split()[1])
             except Exception:
@@ -472,7 +480,8 @@ def call_agent(prompt: str, user: str, cycle: int = None, ws: Path = None) -> tu
     # 独立会话 = 独立进程组：超时时连同它拉起的所有子进程一起杀干净
     env = dict(os.environ)
     if ws:
-        env["DABAI_WORKSPACE"] = str(ws)
+        env["PHOENIX_WORKSPACE"] = str(ws)
+        env["DABAI_WORKSPACE"] = str(ws)   # 子进程可能还在读旧名
     p = subprocess.Popen(argv, cwd=str(ws or BASE), env=env, stdout=subprocess.PIPE,
                          stderr=subprocess.PIPE, text=True, start_new_session=True)
     fh = None

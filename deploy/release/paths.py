@@ -336,7 +336,7 @@ def _selftest() -> int:
         ("models/unlisted.vrm", LOCAL),   # 未点名 → 默认受保护
         ("backgrounds/太空飞船走廊.glb", LOCAL),
         ("key.pem", LOCAL),
-        ("deploy/tls/dabai-server.key", LOCAL),
+        ("deploy/tls/phoenix-ca.key", LOCAL),
         ("settings.json", LOCAL),
         ("cards.json", LOCAL),
         ("chat_memory.db-wal", LOCAL),
