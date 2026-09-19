@@ -142,7 +142,7 @@ phoenix.bat --setup
 | --- | --- | --- |
 | 对话模型 | 网页工具栏 → **模型供应商** → 选中「硅基流动」→ 填 API Key → 激活 | 首次使用默认就是管理员，这个按钮可见 |
 | 语音识别（你说话 → 文字） | 网页工具栏 → **角色卡片** → 编辑卡片 → 「识别 API Key」 | 留空则沿用对话那把 Key（`server.py:1691`） |
-| AI 画图 | 记事本打开 `settings.json`，填 `images_api_key` | 默认 `images_base_url` 已经是硅基流动；**这一项没有网页入口**，只能改文件 |
+| AI 画图 | 网页工具栏 → **模型供应商** → 面板下方「AI 画图 API Key」→ 填 Key → 保存 | `images_base_url` / `images_model` 留空即用默认（硅基流动 / `Kwai-Kolors/Kolors`） |
 | 语音合成（文字 → 说话） | 不用管 | 默认 `edge_tts` 免费引擎，不需要 Key |
 
 网页里改的即时生效；改过 `settings.json` 要重启服务（关掉黑窗口，重新双击 `phoenix.bat`）。

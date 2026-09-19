@@ -406,6 +406,12 @@ export interface AppKernel {
   llmProxyUrl: HTMLInputElement | null;
   llmProxySaveBtn: HTMLButtonElement | null;
   llmProxyStatus: HTMLDivElement | null;
+  // AI 画图（应用级配置，不是供应商凭证）
+  imagesApiKey: HTMLInputElement | null;
+  imagesBaseUrl: HTMLInputElement | null;
+  imagesModel: HTMLInputElement | null;
+  imagesSaveBtn: HTMLButtonElement | null;
+  imagesStatus: HTMLDivElement | null;
   // 角色卡片 TTS：API 供应商（应用配置全部在卡片）
   rcTtsApiPanel: HTMLDivElement | null;
   rcTtsApiUrl: HTMLInputElement | null;
@@ -1743,6 +1749,8 @@ export interface AppKernel {
   testProvider?: any;
   loadLlmProxyConfig?: any;
   saveLlmProxy?: any;
+  loadImagesConfig?: any;
+  saveImagesConfig?: any;
   providerNameById?: any;
   renderRcProviderOptions?: any;
   _editingProviderId?: any;

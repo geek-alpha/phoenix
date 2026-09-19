@@ -69,6 +69,12 @@ App.rcRoleName = App.$('rc-role-name') as HTMLInputElement | null;
   App.llmProxyUrl = App.$('llm-proxy-url') as HTMLInputElement | null;
   App.llmProxySaveBtn = App.$('llm-proxy-save') as HTMLButtonElement | null;
   App.llmProxyStatus = App.$('llm-proxy-status') as HTMLDivElement | null;
+  // AI 画图（应用级配置，不是供应商凭证）
+  App.imagesApiKey = App.$('images-api-key') as HTMLInputElement | null;
+  App.imagesBaseUrl = App.$('images-base-url') as HTMLInputElement | null;
+  App.imagesModel = App.$('images-model') as HTMLInputElement | null;
+  App.imagesSaveBtn = App.$('images-save') as HTMLButtonElement | null;
+  App.imagesStatus = App.$('images-status') as HTMLDivElement | null;
   // 角色卡片 TTS：API 供应商（应用配置全部在卡片）
   App.rcTtsApiPanel = App.$('rc-tts-api-panel') as HTMLDivElement | null;
   App.rcTtsApiUrl = App.$('rc-tts-api-url') as HTMLInputElement | null;

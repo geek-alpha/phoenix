@@ -29,6 +29,19 @@ sudo apt-get install -y python3-venv python3-dev ffmpeg ripgrep
 
 系统包也想自动装：`./tools/linux_setup.sh --all`（sudo 装系统包 + venv + 自检）。
 
+### 1.1 拿到 API Key（首次必做）
+
+Phoenix 自己不带模型额度，对话和画图都要一把 API Key，默认走**硅基流动**：
+
+| 步骤 | 地址 |
+| --- | --- |
+| 1. 注册 | <https://cloud.siliconflow.cn/i/ByXrxmTh> |
+| 2. 实名认证 | <https://cloud.siliconflow.cn/account/authentication> —— 个人认证 = 支付宝扫码人脸；未实名不能充值/开票 |
+| 3. 创建 API Key | <https://cloud.siliconflow.cn/account/ak> → 「新建 API 密钥」→ 复制 `sk-` 开头那串 |
+
+填哪儿见 [README 的「注册账号、申请 API Key」](README.md)：对话在**模型供应商**，画图在模型供应商面板下方的
+**AI 画图 API Key**，语音识别在**角色卡片**。都不需要手工改 `settings.json`。
+
 ## 2. 环境变量
 
 | 变量 | 作用 | 默认 |

@@ -3187,6 +3187,10 @@ async def llm_config_get():
         payload["api_key"] = cfg.get("api_key", "")
         payload["llm_proxy"] = str(cfg.get("llm_proxy") or "").strip()
         payload["llm_proxy_options"] = LLM_PROXY_OPTIONS
+        # AI 画图是应用级配置（不是供应商凭证）：留空的地址/模型由技能内置默认值兜底
+        payload["images_api_key"] = str(cfg.get("images_api_key") or "")
+        payload["images_base_url"] = str(cfg.get("images_base_url") or "")
+        payload["images_model"] = str(cfg.get("images_model") or "")
         return payload
     except Exception as e:
         return {"providers": [], "active_id": "", "temperature": 0.2, "error": str(e)}
@@ -3209,6 +3213,9 @@ async def llm_config_set(payload: dict):
     llm_proxy = payload.get("llm_proxy")
     if llm_proxy is not None:
         cfg["llm_proxy"] = str(llm_proxy).strip()
+    for _img_key in ("images_api_key", "images_base_url", "images_model"):
+        if _img_key in payload and payload[_img_key] is not None:
+            cfg[_img_key] = str(payload[_img_key]).strip()
     legacy_incoming = payload.get("providers")
     if isinstance(legacy_incoming, dict):
         for kind, prof in legacy_incoming.items():

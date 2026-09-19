@@ -20,6 +20,7 @@ export default (function init(App: AppKernel) {
 
   App.refreshProviderList = async function refreshProviderList() {
     App.loadLlmProxyConfig?.();
+    App.loadImagesConfig?.();
     if (App.providerList) {
       App.providerList.innerHTML = '<div style="text-align:center;color:var(--text-dim);padding:20px">加载中…</div>';
     }
@@ -273,6 +274,41 @@ export default (function init(App: AppKernel) {
     }
   };
 
+  /* ---------- AI 画图（应用级配置，不是供应商凭证） ---------- */
+  App.loadImagesConfig = async function loadImagesConfig() {
+    try {
+      const res = await fetch('/api/llm/config');
+      const data = await res.json();
+      if (App.imagesApiKey) App.imagesApiKey.value = (data && data.images_api_key) || '';
+      if (App.imagesBaseUrl) App.imagesBaseUrl.value = (data && data.images_base_url) || '';
+      if (App.imagesModel) App.imagesModel.value = (data && data.images_model) || '';
+      if (App.imagesStatus) {
+        App.imagesStatus.textContent = (data && data.images_api_key)
+          ? '已配置：AI 画图可直接使用（地址/模型留空则用默认值）'
+          : '未配置：AI 画图 / 壁纸生成不可用，填上 Key 保存即可';
+      }
+    } catch (e) { /* 弹窗只读加载，失败静默 */ }
+  };
+
+  App.saveImagesConfig = async function saveImagesConfig() {
+    try {
+      const res = await fetch('/api/llm/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          images_api_key: (App.imagesApiKey?.value || '').trim(),
+          images_base_url: (App.imagesBaseUrl?.value || '').trim(),
+          images_model: (App.imagesModel?.value || '').trim()
+        })
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      App.showToast('画图配置已保存');
+      await App.loadImagesConfig?.();
+    } catch (err) {
+      App.showToast('保存画图配置失败：' + String((err as Error).message || err));
+    }
+  };
+
   /** 供应商编辑弹窗里「选为默认模型」联动 */
   App.providerModels?.addEventListener('change', () => {
     if (App.providerDefaultModel && App.providerModels) {
@@ -299,4 +335,5 @@ export default (function init(App: AppKernel) {
     }
   });
   App.llmProxySaveBtn?.addEventListener('click', () => App.saveLlmProxy());
+  App.imagesSaveBtn?.addEventListener('click', () => App.saveImagesConfig());
 });

@@ -35,7 +35,7 @@ Phoenix 的**对话模型、语音识别、AI 画图**都走 OpenAI 兼容接口
 | --- | --- | --- |
 | 对话模型 | 网页工具栏 → **模型供应商** → 选中「硅基流动」→ 填 API Key → 激活 | 也可直接改 `settings.json` 的 `api_key` + `base_url`（**两者必须成对改**，只换 Key 不换地址会 401） |
 | 语音识别（说话 → 文字） | 网页工具栏 → **角色卡片** → 编辑卡片 → 「识别 API Key」 | 留空则沿用对话那把 Key（`server.py:1691`）；识别端点默认就是硅基流动 |
-| AI 画图 | 记事本打开 `settings.json`，填 `images_api_key` | `images_base_url` 默认已是硅基流动；这一项**没有网页入口**，只能改文件 |
+| AI 画图 | 网页工具栏 → **模型供应商** → 面板下方「AI 画图 API Key」→ 填 Key → 保存 | `images_base_url` / `images_model` 留空即用默认（硅基流动 / `Kwai-Kolors/Kolors`）；也可直接改 `settings.json` 的 `images_api_key` |
 | 语音合成（文字 → 说话） | 不用管 | 默认 `edge_tts` 免费引擎；想换硅基流动 CosyVoice 再填 TTS 那组字段 |
 
 网页里改的即时生效；改 `settings.json` 需要重启服务（重新跑一次 `phoenix.bat` / `./phoenix.sh`）。

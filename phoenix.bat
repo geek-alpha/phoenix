@@ -2,8 +2,8 @@
 rem Phoenix Windows 启动脚本（与 phoenix.sh 等价）
 rem
 rem 用法：
-rem   phoenix.bat              启动 server.py
-rem   phoenix.bat --setup      一键：建 venv + 装依赖 + 自检 + 启动（首次用这条）
+rem   phoenix.bat              启动 server.py（首次运行自动建 venv + 装依赖）
+rem   phoenix.bat --setup      强制重跑安装：建 venv + 装依赖 + 自检 + 启动
 rem   phoenix.bat --check      只做环境自检，不启动
 rem
 rem 环境变量：
@@ -75,10 +75,22 @@ if not defined BASEPY (
 )
 if not defined BASEPY (
   echo [X] 找不到 Python，请安装 Python 3.10+，或设置 PHOENIX_PYTHON 指向解释器
+  pause
   exit /b 1
 )
 
 set "VPY=%ROOT%\venv\Scripts\python.exe"
+
+rem ---- 首次运行：没 venv 就自动装（双击即可，不必先手敲 --setup）----
+rem 例外一：显式设了 PHOENIX_PYTHON / DABAI_PYTHON —— 那是刻意不用 venv 的人，
+rem 强建一个几百 MB 的环境属于越界，保持原行为（缺依赖时提示 --setup）。
+rem 例外二：--check / --diag 是只读诊断，不该顺手下依赖。
+if "%SETUP%"=="0" if "%CHECKONLY%"=="0" if "%DIAG%"=="0" (
+  if not exist "!VPY!" if not defined PHOENIX_PYTHON if not defined DABAI_PYTHON (
+    set "SETUP=1"
+    echo == 首次运行：未找到虚拟环境，自动开始安装（等价于 phoenix.bat --setup）==
+  )
+)
 
 rem ---- 一键引导：venv 不在、或启动必需依赖不全，都补装（幂等）----
 rem 只看 venv\Scripts\python.exe 存在与否不够：上次装到一半（磁盘满 / 断网）会留下一个
@@ -97,6 +109,7 @@ if "%SETUP%"=="1" (
       %BASEPY% -m venv "%ROOT%\venv"
       if errorlevel 1 (
         echo [X] 创建虚拟环境失败
+        pause
         exit /b 1
       )
     )
@@ -105,6 +118,7 @@ if "%SETUP%"=="1" (
     "!VPY!" -m pip install --no-input --disable-pip-version-check -r "%ROOT%\requirements.txt"
     if errorlevel 1 (
       echo [X] 依赖安装失败，请检查网络或代理后重试
+      pause
       exit /b 1
     )
   )
@@ -189,8 +203,8 @@ exit /b %RC%
 :usage
 echo Phoenix Windows 启动脚本
 echo.
-echo   phoenix.bat              启动 server.py
-echo   phoenix.bat --setup      一键：建 venv + 装依赖 + 自检 + 启动
+echo   phoenix.bat              启动 server.py（首次运行会自动建 venv 装依赖）
+echo   phoenix.bat --setup      强制重跑安装：建 venv + 装依赖 + 自检 + 启动
 echo   phoenix.bat --check      只做环境自检，不启动
 echo   phoenix.bat --diag       打印环境诊断（起不来/卡住时先跑这条）
 echo.
