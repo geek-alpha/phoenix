@@ -15,7 +15,7 @@ LOCAL > EXPERIENCE > CODE，前两档一票否决：不是「尽量别写」，�
     classify("agent.py")            -> "code"
     classify("conviction.json")     -> "experience"
     classify("venv/bin/python")     -> "local"
-    code_files(Path("/home/wxf/dabai"))   -> 该仓库里可被更新覆盖的文件清单
+    code_files(Path(os.environ["PHOENIX_HOME"]))  -> 该仓库里可被更新覆盖的文件清单
 
 自检：python paths.py --selftest
 """

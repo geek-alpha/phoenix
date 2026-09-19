@@ -3,7 +3,7 @@
 
 用法：
   python deploy/release/watch_release.py v1.0.6
-       [--repo wangxingfen/dabai-linux] [--root /home/wxf/dabai]
+       [--repo wangxingfen/dabai-linux] [--root $PHOENIX_HOME]
        [--timeout 1800] [--interval 30]
 
 退出码：
@@ -119,7 +119,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="盯发行版 workflow 直到 release 落地")
     ap.add_argument("tag", help="要盯的 tag，如 v1.0.6")
     ap.add_argument("--repo", default="wangxingfen/dabai-linux")
-    ap.add_argument("--root", default="/home/wxf/dabai")
+    ap.add_argument("--root", default=os.environ.get("PHOENIX_HOME") or str(Path(__file__).resolve().parents[2]))
     ap.add_argument("--timeout", type=int, default=1800, help="总超时秒数，默认 1800")
     ap.add_argument("--interval", type=int, default=30, help="轮询间隔秒数，默认 30")
     args = ap.parse_args()

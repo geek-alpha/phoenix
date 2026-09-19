@@ -52,7 +52,7 @@ MANIFEST_NAME = "MANIFEST.json"
 
 # ── 配置默认值（可被 /etc/dabai/update.conf 或命令行覆盖）──────────────────
 DEFAULTS = {
-    "ROOT": "/home/wxf/dabai",
+    "ROOT": os.environ.get("PHOENIX_HOME") or str(Path(__file__).resolve().parents[2]),
     "STATE": "/var/lib/dabai-update",
     "REPO": "wangxingfen/dabai-linux",
     "SERVICE": "myservice",
