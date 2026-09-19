@@ -214,6 +214,7 @@ phoenix.bat --diag
 | 报 `WinError 10013` / 端口被拒 | Hyper-V / WSL2 / Docker 保留了 8000 所在段，非管理员绑不上（管理员能绑，所以看着像「必须管理员运行」） | 服务输出里已经给了命令。管理员 PowerShell 任选其一：`net stop winnat && net start winnat`，或 `netsh int ipv4 add excludedportrange protocol=tcp startport=8000 numberofports=1`。查当前保留段：`netsh interface ipv4 show excludedportrange protocol=tcp` |
 | 报端口已被占用 | 另一个程序在 8000 上（常见：上一个 Phoenix 没关干净） | 服务会自动改用其它端口并在日志里写明；想手动清：`netstat -ano \| findstr :8000` 拿 PID → 任务管理器结束 |
 | 网页一直「连接中…」 | 没装 Node.js，或版本低于 22.6 | 见 §2；用 `node --version` 确认 ≥ v22.6 |
+| 网页能开，一进去就弹「还没填大模型 API Key」 | 首次安装还没配 Key（settings.json 里 api_key 是空串） | 见 §4：设置 → 模型供应商填入并保存。老版本没这条提示，表现是「连上了但发消息没反应」，服务窗口里一个 `Missing credentials` 报错 |
 | 网页能开，但说话没反应 / 画不出图 | API Key 没填或填错 | 见 §4、§7；语音识别没 Key 会直接报「未配置 API Key」 |
 | 中文变乱码 | 控制台代码页不是 UTF-8 | `phoenix.bat` 已自动 `chcp 65001`；自己手敲命令的话先执行一次 `chcp 65001` |
 | 装在 `Program Files` 里起不来 | 目录没有写权限 | 挪到 `%USERPROFILE%\Phoenix` |

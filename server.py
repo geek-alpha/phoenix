@@ -6411,12 +6411,21 @@ async def websocket_endpoint(ws: WebSocket):
                 )
                 manager.bind_user(ws, state.user_id)
                 _TURN_UID.set(state.user_id)
-                # 预初始化该用户的 Agent
-                agent = await get_shared_agent(state.user_id)
+                # 预初始化该用户的 Agent。
+                # 必须兜住异常：初始化失败（配置损坏/依赖缺失）会把整条 WS 消息
+                # 循环带走，前端只看到永远「连接中」，服务端只留一个 traceback
+                # ——首次安装没填 api_key 时正是这个现象。
+                agent = None
+                try:
+                    agent = await get_shared_agent(state.user_id)
+                except Exception as e:
+                    logger.warning(f"Agent 初始化失败（user_id={state.user_id}）: {e}")
                 # 绑定当前活动角色卡片的记忆命名空间（角色卡片独立记忆空间）
-                if agent.memory:
+                if agent is not None and agent.memory:
                     await agent.sync_memory_namespace()
-                state.chat_session_id = agent.memory.session_id if agent.memory else None
+                state.chat_session_id = (
+                    agent.memory.session_id if (agent is not None and agent.memory) else None
+                )
                 # 全局共享历史：同一用户复用同一份列表，不按连接重建
                 history = await _ensure_global_history(state.user_id)
                 state._ws_history = history
@@ -6426,6 +6435,16 @@ async def websocket_endpoint(ws: WebSocket):
                     "chat_session_id": state.chat_session_id,
                     "history": _history_for_client(history),
                 })
+                # 首次安装最容易卡的一步：没填 API Key。主动弹提示，
+                # 别让用户对着一个「连上了但说什么都没反应」的页面猜。
+                _hint = getattr(agent, "_llm_missing_hint", "") if agent else ""
+                if _hint:
+                    await safe_send_json(ws, {"type": "error", "message": _hint})
+                elif agent is None:
+                    await safe_send_json(ws, {
+                        "type": "error",
+                        "message": "AI 初始化失败，请把服务窗口里的报错发我看看",
+                    })
                 # 页面刷新/断线重连：后台对话轮仍在执行 → 发送进度快照，
                 # 前端无缝接管回合气泡；后续事件经 _BroadcastWS 广播自然到达。
                 # 不再触发断点续跑，避免同一任务被重复执行（旧轮还在跑）。
@@ -7873,6 +7892,11 @@ def _port_usable(host: str, port: int):
     fam = socket.AF_INET6 if ":" in host else socket.AF_INET
     s = socket.socket(fam, socket.SOCK_STREAM)
     try:
+        # Linux/macOS 必须设 SO_REUSEADDR：上一次运行留下的 TIME_WAIT 会让 bind 失败，
+        # 明明没人监听却报「端口已被占用」，服务悄悄换到 8002，用户按文档访问 8000 落空。
+        # Windows 上不能设（见上面 docstring），所以按平台分开。
+        if os.name != "nt":
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         if fam == socket.AF_INET6:
             try:
                 s.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)

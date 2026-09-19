@@ -2622,6 +2622,33 @@ def _model_first_transport(inner):
     return _ModelFirstTransport(inner)
 
 
+# 首次安装时 settings.json 的 api_key 是空串，而 openai SDK 遇到空 key 会直接抛
+# OpenAIError。这一步发生在 WS 的 set_user 分支里，异常会把整条消息循环带走——
+# 前端永远停在「连接中」，服务端只留一个 traceback。所以这里用占位 key 让客户端
+# 先构造成功，缺 Key 的事交给 llm_missing_key_hint() 在真正发起对话时讲给用户听。
+_PLACEHOLDER_API_KEY = "sk-not-configured"
+
+
+class LLMNotConfiguredError(RuntimeError):
+    """大模型凭据缺失。消息面向用户，可直接展示在网页上。"""
+
+
+def llm_missing_key_hint(cfg: dict) -> str:
+    """没配大模型 Key 时返回给用户看的提示；配好了（或本地推理）返回空串。"""
+    if str((cfg or {}).get("api_key") or "").strip():
+        return ""
+    if is_local_url(str((cfg or {}).get("base_url") or "")):
+        return ""  # Ollama / 局域网模型服务本来就不校验 Key
+    return ("还没填大模型 API Key，现在发消息我是收不到的。"
+            "点右下角「设置 → 模型供应商」填进去保存即可；"
+            "也可以直接改 settings.json 的 api_key（和 base_url 要配对）。")
+
+
+def _key_or_placeholder(api_key: str) -> str:
+    """SDK 不接受空 api_key；本地推理服务虽不校验，也得给个占位。"""
+    return str(api_key or "").strip() or _PLACEHOLDER_API_KEY
+
+
 def _build_llm_client(base_url: str, api_key: str, proxy: str | None = None) -> AsyncOpenAI:
     """构建 LLM 客户端（可走 fq 代理）。
 
@@ -2636,7 +2663,7 @@ def _build_llm_client(base_url: str, api_key: str, proxy: str | None = None) -> 
     import httpx as _httpx
     inner = _httpx.AsyncHTTPTransport(proxy=proxy) if proxy else _httpx.AsyncHTTPTransport()
     return AsyncOpenAI(
-        api_key=api_key,
+        api_key=_key_or_placeholder(api_key),
         base_url=base_url,
         http_client=_httpx.AsyncClient(
             transport=_model_first_transport(inner),
@@ -2683,6 +2710,7 @@ class AIAgent:
         self._skill_order: list = []         # 技能激活先后（重挂顺序的唯一依据）
         self._skills_restored_sid = None     # 已评估过技能恢复的 sid（重启重挂用）
         self._initialized = False
+        self._llm_missing_hint = ""  # 非空 = 没配 API Key，消息直接展示给用户
         self._text_tool_mode = False  # 当前模型不支持原生工具调用时置 True，改用文本协议
         self._reasoning_echo_required = False  # thinking 渠道要求回传 reasoning_content：踩过一次后每轮前置补齐
         self._usage_enabled = True  # LLM 用量统计开关（运行时提供方不支持时可降级为 False）
@@ -2711,6 +2739,10 @@ class AIAgent:
             return
 
         self._config = load_config_for(self.user_id)
+        self._llm_missing_hint = llm_missing_key_hint(self._config)
+        if self._llm_missing_hint:
+            logger.warning("未配置大模型 API Key，Agent 可启动但无法对话：%s",
+                           self._llm_missing_hint)
 
         # 初始化 OpenAI 客户端（可走 fq 代理，不信任系统代理）
         self._client = _build_llm_client(self._config["base_url"], self._config["api_key"],
@@ -2781,6 +2813,7 @@ class AIAgent:
         """
         try:
             self._config = load_config_for(self.user_id)
+            self._llm_missing_hint = llm_missing_key_hint(self._config)
             self._client = _build_llm_client(
                 self._config.get("base_url", ""),
                 self._config.get("api_key", ""),
@@ -3383,6 +3416,11 @@ class AIAgent:
                     kwargs["messages"] = _ensure_reasoning_echo(kwargs["messages"])
         except Exception:
             pass
+        # getattr 而非直接取属性：测试与子智能体会绕过 __init__ 造裸实例
+        _hint = getattr(self, "_llm_missing_hint", "")
+        if _hint:
+            # 缺 Key 时不必真发请求：401 会被兜底文案说成「连不上服务」，指错方向
+            raise LLMNotConfiguredError(_hint)
         runtime = _get_runtime()
         attempt = 0
         started = time.monotonic()
@@ -5103,6 +5141,10 @@ class AIAgent:
                     self._inject_text_tools(messages, tools)
                     logger.warning(f"当前模型不支持原生工具调用，已切换为文本工具协议: {e}")
                     continue
+                if isinstance(e, LLMNotConfiguredError):
+                    # 缺 Key 不是网络问题：套用「重连失败」文案会把人带去查网络
+                    yield TextDelta(str(e))
+                    return
                 err_msg = (f"（AI 暂时连不上服务（{e}），已自动重连多次仍失败。"
                            f"说『继续』可以从断点接着干，不用重新描述任务）")
                 yield TextDelta(err_msg)
